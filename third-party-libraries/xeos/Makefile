@@ -13,6 +13,7 @@ SRC_PATH = $(ROOTDIR)/src
 INC_PATH = $(ROOTDIR)/src
 TEST_PATH = $(ROOTDIR)/tests
 HEADERS = xeospoly.h xeoscoldn.h xeosbase.h physquan.h nvector.h
+HEADERS+= filereader.h
 INCHEADERS = pq_enum.inc quantities.inc
 OBJECTS = $(addprefix $(OBJ_PATH)/, $(OBJS))
 BINARIES = main.x

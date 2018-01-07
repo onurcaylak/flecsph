@@ -16,6 +16,7 @@
 #include <math.h>
 #include "physquan.h"
 #include "xeosbase.h"
+#include "filereader.h"
 
 namespace xeos {
 
@@ -23,11 +24,13 @@ namespace xeos {
  * Single-parameter tabulated EoS for cold nuclear matter
  * TODO: implement details, give usage example here
  */
+template <class FReader>
 class XeosColdNuclear : public XeosTabulated {
  private:
 
   std::vector<Pq> primary_vars;
   std::vector<Pq> additional_vars;
+  FReader freader;
 
  protected:
   // units in which the tables are given
@@ -80,7 +83,8 @@ class XeosColdNuclear : public XeosTabulated {
 //
 // XeosColdNuclear: workhorse constructor definition
 //
-XeosColdNuclear::XeosColdNuclear (
+template <class FReader>
+XeosColdNuclear<FReader>::XeosColdNuclear (
     const std::string _path,
     const format_type _fmt,
     const PhUnits _u) {
@@ -107,7 +111,8 @@ XeosColdNuclear::XeosColdNuclear (
 //
 // File reader (TODO: implement with templates)
 //
-void XeosColdNuclear::ReadEosTables() {
+template <class FReader>
+void XeosColdNuclear<FReader>::ReadEosTables() {
   /*      +
      TODO
    +      */
@@ -116,7 +121,8 @@ void XeosColdNuclear::ReadEosTables() {
 //
 // General EoS function
 //
-void XeosColdNuclear::operator() (const int num_out,
+template <class FReader>
+void XeosColdNuclear<FReader>::operator() (const int num_out,
     eos_in in_array[],
     eos_out out_array[]) {
   /*      +
@@ -127,7 +133,8 @@ void XeosColdNuclear::operator() (const int num_out,
 //
 // General derivative(s), (dF/dX)_const
 //
-void XeosColdNuclear::DfDx (const int num_out, const Pq dX,
+template <class FReader>
+void XeosColdNuclear<FReader>::DfDx (const int num_out, const Pq dX,
       eos_in  in_array[],
       eos_out dF_array[]) {
   /*      +
@@ -135,7 +142,8 @@ void XeosColdNuclear::DfDx (const int num_out, const Pq dX,
    +      */
 }
 
-bool XeosColdNuclear::ConsistencyCheck() const {
+template <class FReader>
+bool XeosColdNuclear<FReader>::ConsistencyCheck() const {
   /*      +
      TODO
    +      */
@@ -144,3 +152,36 @@ bool XeosColdNuclear::ConsistencyCheck() const {
 
 } // namespace xeos
 #endif // XEOS_XEOSCOLDN_H_
+
+#if 0
+#include <iostream>
+
+int main() {
+  using namespace std;
+  using namespace xeos;
+  double fields[20];
+  AsciiFileReader A("../data/rnsid/sfho_0.1MeV_beta.txt");
+  cout << "A.GetFilename() -> " << A.GetFilename() << endl;
+  int file_len = A.NumLines();
+  cout << "A.NumLines() ->    " << file_len << endl;
+  A.Open();
+  int header_len = A.SkipHashHeader();
+  cout << "A.SkipHashHeader() -> " << header_len << endl;
+  int n_fields;
+  cout << scientific << setprecision(6);
+  A.Rewind(); // rewind;
+  //A.SkipHashHeader();
+  A.SkipHeader(header_len);
+  for (int l=0; l < file_len - header_len; ++l) {
+    n_fields = A.ReadFields(20,fields);
+    if (n_fields<16)
+      break;
+    //cout << setw(4) << l << ":";
+    cout << fields[0];
+    for (int i=1;i<n_fields;++i)
+      cout << " " << fields[i];
+    cout << endl;
+  }
+  A.Close();
+}
+#endif
