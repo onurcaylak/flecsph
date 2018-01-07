@@ -105,7 +105,7 @@ class PhysicalScalar : public PhysicalQuantity {
   PhysicalScalar<K,S> ()
       : PhysicalScalar<K,S> ((S)0, global_units) {}
 
-  PhysicalScalar (const S _v)
+  PhysicalScalar<K,S> (const S _v)
       : PhysicalScalar<K,S> (_v, global_units) {}
 
   // --= workhorse constructor =--
