@@ -81,7 +81,6 @@ class AsciiFileReader {
     std::string str;
     while (std::getline(fs,str))
       ++num_lines;
-    Close();
     return num_lines;
   }
 

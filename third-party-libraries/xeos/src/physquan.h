@@ -33,6 +33,7 @@
 #include <iomanip>
 #include <math.h>
 #include "nvector.h"
+#include <iostream>
 
 namespace xeos {
 

@@ -67,9 +67,6 @@ class XeosBase {
 class XeosTabulated : public XeosBase {
 
  public:
-  // define EOS format type
-  typedef unsigned int format_type;
-
   // Demand from every tabulated eos class an ability to
   // read eos table (or tables, if there are several).
   virtual void ReadEosTables() = 0;
@@ -96,7 +93,6 @@ class XeosTabulated : public XeosBase {
 
  protected:
   std::string data_path; // where the stuff is
-  unsigned int format;   // for making sense of the plethora of formats
 
 }; // class XeosTabulated
 

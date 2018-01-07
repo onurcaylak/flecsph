@@ -155,6 +155,29 @@ class NVector {
     return my_vector.at(shape[2]*(shape[1]*i+j)+k);
   }
 
+  // array elements access operator
+  S operator()(const size_type i) const {
+    assert (num_dims == 1);
+    assert (i>=0 && i<shape[0]);
+    return my_vector.at(i);
+  }
+
+  S operator()(const size_type i, const size_type j) const {
+    assert (num_dims == 2);
+    assert (i>=0 && i<shape[0]);
+    assert (j>=0 && j<shape[1]);
+    return my_vector.at(shape[1]*i+j);
+  }
+
+  S operator()(const size_type i, const size_type j,
+    const size_type k) const {
+    assert (num_dims == 3);
+    assert (i>=0 && i<shape[0]);
+    assert (j>=0 && j<shape[1]);
+    assert (k>=0 && k<shape[2]);
+    return my_vector.at(shape[2]*(shape[1]*i+j)+k);
+  }
+
   // reshape operation
   void Reshape(const size_type Nx) {
     assert ( shape[0]*shape[1]*shape[2] == Nx);
