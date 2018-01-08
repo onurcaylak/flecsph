@@ -30,22 +30,32 @@ PQ_TYPEDEF(Enthalpy)
 PQ_TYPEDEF(SpecificInternalEnergy)
 PQ_TYPEDEF(RestMassDensity)
 PQ_TYPEDEF(BaryonNumberDensity)
+PQ_TYPEDEF(ElectronFraction)
 
 // return string identifying physical quantity
 const std::string PqString(const Pq kind) {
   std::string s;
   switch(kind) {
-    case Pq::Undefined:
-      s = "undefined";
-      break;
-    case Pq::Other:
-      s = "other";
+    case Pq::BaryonNumberDensity:
+      s = "baryon number density";
       break;
     case Pq::Density:
       s = "density";
       break;
+    case Pq::ElectronFraction:
+      s = "electron fraction";
+      break;
+    case Pq::Enthalpy:
+      s = "enthalpy";
+      break;
+    case Pq::Other:
+      s = "other";
+      break;
     case Pq::Pressure:
       s = "pressure";
+      break;
+    case Pq::RestMassDensity:
+      s = "rest mass density";
       break;
     case Pq::SpecificInternalEnergy:
       s = "specific internal energy";
@@ -53,14 +63,8 @@ const std::string PqString(const Pq kind) {
     case Pq::Temperature:
       s = "temperature";
       break;
-    case Pq::Enthalpy:
-      s = "enthalpy";
-      break;
-    case Pq::RestMassDensity:
-      s = "rest mass density";
-      break;
-    case Pq::BaryonNumberDensity:
-      s = "baryon number density";
+    case Pq::Undefined:
+      s = "undefined";
       break;
     default:
       s = "";
@@ -109,6 +113,10 @@ FillPhysicalDimensions (const Pq q, float retval[]) {
       retval[Tp] = 1;
       break;
 
+    // dimensionless quantities
+    case Pq::ElectronFraction:
+      break;
+
     default:
       assert(false); // unknown Pq
   }
@@ -119,122 +127,107 @@ FillPhysicalDimensions (const Pq q, float retval[]) {
 std::string
 PqUnitsString(const Pq pq_kind, const PhUnits u) {
   std::string str;
-  switch(u) {
-    case PhUnits::CGS:
-      switch(pq_kind) {
-        case Pq::Density:
-        case Pq::RestMassDensity:
+  switch(pq_kind) {
+    case Pq::Density:
+    case Pq::RestMassDensity:
+      switch(u) {
+        case PhUnits::CGS:
           str = "g/cm^3";
           break;
-        case Pq::BaryonNumberDensity:
-          str = "1/cm^3";
-          break;
-        case Pq::Pressure:
-          str = "dynes";
-          break;
-        case Pq::SpecificInternalEnergy:
-          str = "erg/g";
-          break;
-        case Pq::Temperature:
-          str = "K";
-          break;
-        case Pq::Enthalpy:
-          str = "erg/g";
-          break;
-        case Pq::Undefined:
-        case Pq::Other:
-        default:
-          str = "cgsK";
-      }
-      break;
-
-    case PhUnits::SI:
-      switch(pq_kind) {
-        case Pq::Density:
-        case Pq::RestMassDensity:
+        case PhUnits::SI:
           str = "kg/m^3";
           break;
-        case Pq::BaryonNumberDensity:
-          str = "1/m^3";
-          break;
-        case Pq::Pressure:
-          str = "Pa";
-          break;
-        case Pq::SpecificInternalEnergy:
-          str = "J/kg";
-          break;
-        case Pq::Temperature:
-          str = "K";
-          break;
-        case Pq::Enthalpy:
-          str = "J/kg";
-          break;
-        case Pq::Undefined:
-        case Pq::Other:
-        default:
-          str = "SI";
-      }
-      break;
-
-    case PhUnits::NUCLEAR:
-      switch(pq_kind) {
-        case Pq::Density:
-        case Pq::RestMassDensity:
+        case PhUnits::NUCLEAR:
           str = "MeV/c^2/fm^3";
           break;
-        case Pq::BaryonNumberDensity:
-          str = "1/fm^3";
+        case PhUnits::GR:
+          str = "1/M^2";
           break;
-        case Pq::Pressure:
+        default:
+          assert (false);
+      }
+      break;
+
+    case Pq::Pressure:
+      switch(u) {
+        case PhUnits::CGS:
+          str = "Ba";
+          break;
+        case PhUnits::SI:
+          str = "Pa";
+          break;
+        case PhUnits::NUCLEAR:
           str = "MeV/fm^3";
           break;
-        case Pq::SpecificInternalEnergy:
-          str = "MeV/baryon";
+        case PhUnits::GR:
+          str = "1/M^2";
           break;
-        case Pq::Temperature:
-          str = "MeV";
-          break;
-        case Pq::Enthalpy:
-          str = "MeV/baryon";
-          break;
-        case Pq::Undefined:
-        case Pq::Other:
         default:
+          assert (false);
+      }
+      break;
+
+    case Pq::SpecificInternalEnergy:
+    case Pq::Enthalpy:
+      switch(u) {
+        case PhUnits::CGS:
+          str = "erg/g";
+          break;
+        case PhUnits::SI:
+          str = "J/kg";
+          break;
+        case PhUnits::NUCLEAR:
+          str = "MeV/baryon";
+          break;
+        case PhUnits::GR:
+          str = "1";
+          break;
+        default:
+          assert (false);
+      }
+      break;
+
+    case Pq::Temperature:
+      switch(u) {
+        case PhUnits::CGS:
+        case PhUnits::GR:
+        case PhUnits::SI:
+          str = "K";
+          break;
+        case PhUnits::NUCLEAR:
+          str = "MeV";
+        default:
+          assert (false);
+      }
+      break;
+
+    case Pq::ElectronFraction:
+      str = "1";
+      break;
+
+    case Pq::Undefined:
+    case Pq::Other:
+      switch(u) {
+        case PhUnits::CGS:
+          str = "cgsK";
+          break;
+        case PhUnits::SI:
+          str = "SI";
+          break;
+        case PhUnits::NUCLEAR:
           str = "nuc";
+          break;
+        case PhUnits::GR:
+          str = "geom";
+          break;
+        default:
+          assert (false);
       }
       break;
-
-    case PhUnits::GR:
-      switch(pq_kind) {
-      case Pq::Density:
-      case Pq::RestMassDensity:
-        str = "1/M^2";
-        break;
-      case Pq::BaryonNumberDensity:
-        str = "1/M^3";
-        break;
-      case Pq::Pressure:
-        str = "1/M^2";
-        break;
-      case Pq::SpecificInternalEnergy:
-        str = "M/baryon";
-        break;
-      case Pq::Temperature:
-        str = "K";
-        break;
-      case Pq::Enthalpy:
-        str = "M/baryon";
-        break;
-      case Pq::Undefined:
-      case Pq::Other:
-      default:
-        str = "geom";
-      }
-      break;
-
+    
     default:
-      str = "<STREAM UNDEFINED FOR THESE UNITS>";
-  }
+      assert (false);
+  } // switch pq_kind
   return str;
 }
 

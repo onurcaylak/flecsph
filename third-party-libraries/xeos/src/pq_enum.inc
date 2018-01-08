@@ -32,7 +32,8 @@ enum class Pq {
   Temperature,
   Enthalpy,
   RestMassDensity,
-  BaryonNumberDensity
+  BaryonNumberDensity,
+  ElectronFraction
 };
 
 // conversion factor with respect to cgs
