@@ -40,11 +40,11 @@ class XeosColdNuclear : public XeosTabulated {
 
   // default constructor
   XeosColdNuclear<FR>()
-      : XeosColdNuclear<FR>( "", 
+      : XeosColdNuclear<FR>( "",
         format_type::kFourColumnsCGS,
         PhysicalQuantity::GetGlobalUnits()) {}
 
-  // constructor which omits units 
+  // constructor which omits units
   XeosColdNuclear<FR> (const std::string _path, const format_type _fmt)
       : XeosColdNuclear<FR>( _path, _fmt,
         PhysicalQuantity::GetGlobalUnits()) {}
@@ -53,6 +53,9 @@ class XeosColdNuclear : public XeosTabulated {
   XeosColdNuclear<FR> (const std::string _path, const format_type _fmt,
       const PhUnits _u);
 
+  // destructor
+  virtual ~XeosColdNuclear<FR> ();
+
   // report EoS units
   PhUnits GetUnits() const { return eos_units; }
   format_type GetFormat() const { return format; }
@@ -60,13 +63,13 @@ class XeosColdNuclear : public XeosTabulated {
   virtual void ReadEosTables() override;
 
   virtual double
-  EosTableGridPoint(const Pq var, const int i) const override;
+  GridPoint(const Pq var, const int i) const override;
 
   virtual const int
-  EosTableGridSize(const Pq) const override { return num_records; }
+  GridSize(const Pq) const override { return num_records; }
 
   virtual std::vector<Pq>
-  GetPrimaryQuantities() const override { return primary_vars; }
+  GetPrimaryQuantities() const override { return *primary_vars; }
 
   virtual std::vector<Pq>
   GetAdditionalQuantities() const override { return additional_vars; }
@@ -91,35 +94,15 @@ class XeosColdNuclear : public XeosTabulated {
 
  private:
 
-  std::vector<Pq> primary_vars;
+  std::vector<Pq> *primary_vars;
   std::vector<Pq> additional_vars;
   FR freader;
   int num_records;
   int num_fields;
   format_type format;
-  NVector<double> *table_nvs[];
-  PhysicalQuantity *table_pqs[];
+  NVector<double> *table_nvs[16];
+  PhysicalQuantity *table_pqs[16];
 
-  NvPressure pres_table {PhUnits::CGS};
-  NvDensity  rho_table  {PhUnits::CGS};
-  NvEnthalpy enth_table {PhUnits::CGS};
-  NvBaryonNumberDensity nbar_table {PhUnits::CGS};
-  NvElectronFraction  ye_table {PhUnits::NUCLEAR};
-  NvSpecificInternalEnergy eps_table {PhUnits::NUCLEAR};
-  NvSoundSpeedSq sc2_table {PhUnits::CGS};
-  NvChemPotentialDiff muhat_table {PhUnits::NUCLEAR};
-  NvSpecificEntropy ent_table {PhUnits::NUCLEAR};
-
-  NvNeutronMassFraction   Xn_table {PhUnits::NUCLEAR};
-  NvProtonMassFraction    Xp_table {PhUnits::NUCLEAR};
-  NvDeuteronMassFraction  Xd_table {PhUnits::NUCLEAR};
-  NvTritonMassFraction    Xt_table {PhUnits::NUCLEAR};
-  NvHelionMassFraction    Xh_table {PhUnits::NUCLEAR};
-  NvAlphaMassFraction     Xa_table {PhUnits::NUCLEAR};
-  NvHeavyNucMassFraction  Xheavy_table {PhUnits::NUCLEAR};
-  NvAverageAtomicMass     Abar_table {PhUnits::NUCLEAR};
-  NvAverageNuclearCharge  Zbar_table {PhUnits::NUCLEAR};
-  
 }; // class XeosColdNuclear
 
 
@@ -137,27 +120,56 @@ XeosColdNuclear<FR>::XeosColdNuclear (
   eos_units = _u;
   freader.SetFilename(_path);
 
+  NvPressure               *pres_tab;
+  NvDensity                 *rho_tab;
+  NvEnthalpy               *enth_tab;
+  NvBaryonNumberDensity    *nbar_tab;
+  NvElectronFraction         *ye_tab;
+  NvSpecificInternalEnergy  *eps_tab;
+  NvSoundSpeedSq            *cs2_tab;
+  NvChemPotentialDiff       *muh_tab;
+  NvSpecificEntropy         *ent_tab;
+
+  NvNeutronMassFraction      *Xn_tab;
+  NvProtonMassFraction       *Xp_tab;
+  NvDeuteronMassFraction     *Xd_tab;
+  NvTritonMassFraction       *Xt_tab;
+  NvHelionMassFraction       *Xh_tab;
+  NvAlphaMassFraction        *Xa_tab;
+  NvHeavyNucMassFraction    *Xhv_tab;
+  NvAverageAtomicMass        *Ab_tab;
+  NvAverageNuclearCharge     *Zb_tab;
+
   // setup primary and secondary variables
   switch(_fmt) {
     case format_type::kFourColumnsCGS:
-      primary_vars.push_back(Pq::Density);
-      primary_vars.push_back(Pq::Pressure);
-      primary_vars.push_back(Pq::Enthalpy);
-      primary_vars.push_back(Pq::BaryonNumberDensity);
+      primary_vars = new std::vector<Pq> {
+          Pq::Density,
+          Pq::Pressure,
+          Pq::Enthalpy,
+          Pq::BaryonNumberDensity
+      };
 
       num_fields = 4; // number of fields depends on format
-      rho_table.ConvertTo(PhUnits::CGS);
-      pres_table.ConvertTo(PhUnits::CGS);
-      enth_table.ConvertTo(PhUnits::CGS);
-      nbar_table.ConvertTo(PhUnits::CGS);
+      rho_tab = new NvDensity(PhUnits::CGS);
+      pres_tab = new NvPressure(PhUnits::CGS);
+      enth_tab = new NvEnthalpy(PhUnits::CGS);
+      nbar_tab = new NvBaryonNumberDensity(PhUnits::CGS);
+
+      table_nvs[0] = rho_tab;     table_pqs[0] = rho_tab;
+      table_nvs[1] = pres_tab;    table_pqs[1] = pres_tab;
+      table_nvs[2] = enth_tab;    table_pqs[2] = enth_tab;
+      table_nvs[3] = nbar_tab;    table_pqs[3] = nbar_tab;
       break;
 
     case format_type::kSixteenColumnsNuclear:
-      primary_vars.push_back(Pq::Pressure);
-      primary_vars.push_back(Pq::Density);
-      primary_vars.push_back(Pq::ElectronFraction);
-      primary_vars.push_back(Pq::SpecificInternalEnergy);
-      
+      primary_vars = new std::vector<Pq> {
+          Pq::Pressure,
+          Pq::Density,
+          Pq::ElectronFraction,
+          Pq::SpecificInternalEnergy
+      };
+
       additional_vars.push_back(Pq::ChemPotentialDiff);
       additional_vars.push_back(Pq::SoundSpeedSq);
       additional_vars.push_back(Pq::SpecificEntropy);
@@ -174,13 +186,46 @@ XeosColdNuclear<FR>::XeosColdNuclear (
       additional_vars.push_back(Pq::AverageNuclearCharge);
 
       num_fields = 16;
-      pres_table.ConvertTo(PhUnits::NUCLEAR);
-      rho_table.ConvertTo(PhUnits::CGS);
-      // ye_table.ConvertTo(PhUnits::NULEAR); // no need to convert Ye
-      eps_table.ConvertTo(PhUnits::NUCLEAR);
-      muhat_table.ConvertTo(PhUnits::NUCLEAR);
-      sc2_table.ConvertTo(PhUnits::CGS);
-      ent_table.ConvertTo(PhUnits::NUCLEAR);
+      pres_tab = new NvPressure(PhUnits::NUCLEAR);
+      rho_tab  = new NvDensity(PhUnits::CGS);
+      ye_tab   = new NvElectronFraction(PhUnits::NUCLEAR);
+      eps_tab  = new NvSpecificInternalEnergy(PhUnits::NUCLEAR);
+
+      muh_tab  = new NvChemPotentialDiff {PhUnits::NUCLEAR};
+      cs2_tab  = new NvSoundSpeedSq {PhUnits::CGS};
+      ent_tab  = new NvSpecificEntropy {PhUnits::NUCLEAR};
+      Xn_tab   = new NvNeutronMassFraction {PhUnits::NUCLEAR};
+
+      Xp_tab   = new NvProtonMassFraction {PhUnits::NUCLEAR};
+      Xd_tab   = new NvDeuteronMassFraction {PhUnits::NUCLEAR};
+      Xt_tab   = new NvTritonMassFraction {PhUnits::NUCLEAR};
+      Xh_tab   = new NvHelionMassFraction {PhUnits::NUCLEAR};
+
+      Xa_tab   = new NvAlphaMassFraction {PhUnits::NUCLEAR};
+      Xhv_tab  = new NvHeavyNucMassFraction {PhUnits::NUCLEAR};
+      Ab_tab   = new NvAverageAtomicMass {PhUnits::NUCLEAR};
+      Zb_tab   = new NvAverageNuclearCharge {PhUnits::NUCLEAR};
+
+      table_nvs[ 0] = pres_tab;     table_pqs[ 0] = pres_tab;
+      table_nvs[ 1] = rho_tab;      table_pqs[ 1] = rho_tab;
+      table_nvs[ 2] = ye_tab;       table_pqs[ 2] = ye_tab;
+      table_nvs[ 3] = eps_tab;      table_pqs[ 3] = eps_tab;
+
+      table_nvs[ 4] = muh_tab;      table_pqs[ 4] = muh_tab;
+      table_nvs[ 5] = cs2_tab;      table_pqs[ 5] = cs2_tab;
+      table_nvs[ 6] = ent_tab;      table_pqs[ 6] = ent_tab;
+      table_nvs[ 7] = Xn_tab;       table_pqs[ 7] = Xn_tab;
+
+      table_nvs[ 8] = Xp_tab;       table_pqs[ 8] = Xp_tab;
+      table_nvs[ 9] = Xd_tab;       table_pqs[ 9] = Xd_tab;
+      table_nvs[10] = Xt_tab;       table_pqs[10] = Xt_tab;
+      table_nvs[11] = Xh_tab;       table_pqs[11] = Xh_tab;
+
+      table_nvs[12] = Xa_tab;       table_pqs[12] = Xa_tab;
+      table_nvs[13] = Xhv_tab;      table_pqs[13] = Xhv_tab;
+      table_nvs[14] = Ab_tab;       table_pqs[14] = Ab_tab;
+      table_nvs[15] = Zb_tab;       table_pqs[15] = Zb_tab;
+
       break;
 
     default:
@@ -188,9 +233,18 @@ XeosColdNuclear<FR>::XeosColdNuclear (
   }
 
   ReadEosTables();
+
   if (!ConsistencyCheck())
     std::cerr << "WARNING(XeosColdNuclear): equation of state"
               << "failed consistency check!" << std::endl;
+}
+
+//
+// XeosColdNuclear: virtual destructor
+//
+template <class FR>
+XeosColdNuclear<FR>::~XeosColdNuclear () {
+  delete primary_vars;
 }
 
 //
@@ -206,51 +260,26 @@ void XeosColdNuclear<FR>::ReadEosTables() {
   PqVelocity clight(1.0, PhUnits::GR); // light speed squared
   clight.ConvertTo(PhUnits::CGS);
   const double c2 = (double)clight * (double)clight;
-  
+
   switch (format) {
     case format_type::kFourColumnsCGS:
       header_len = 1;
-
-      // establish number of records in 1D table and resize the table    
-      num_records = file_len - header_len;
-      rho_table.Resize(num_records);
-      pres_table.Resize(num_records);
-      enth_table.Resize(num_records);
-      nbar_table.Resize(num_records);
       break;
 
     case format_type::kSixteenColumnsNuclear:
       freader.Rewind();
       header_len = freader.SkipHashHeader();
-
-      // establish number of records in 1D table and resize the table
-      num_records = file_len - header_len;
-
-      pres_table.Resize(num_records);
-      rho_table.Resize(num_records);
-      ye_table.Resize(num_records);
-      eps_table.Resize(num_records);
-      
-      muhat_table.Resize(num_records);
-      sc2_table.Resize(num_records);
-      ent_table.Resize(num_records);
-      Xn_table.Resize(num_records);
-      
-      Xp_table.Resize(num_records);
-      Xd_table.Resize(num_records);
-      Xt_table.Resize(num_records);
-      Xh_table.Resize(num_records);
-      
-      Xa_table.Resize(num_records);
-      Xheavy_table.Resize(num_records);
-      Abar_table.Resize(num_records);
-      Zbar_table.Resize(num_records);
       break;
 
     default:
       assert (false);
   }
-      
+
+  // establish number of records in 1D table and resize the table
+  num_records = file_len - header_len;
+  for (int i=0; i<num_fields; ++i)
+    table_nvs[i]-> Resize(num_records);
+
   freader.Rewind();
   freader.SkipHeader(header_len);
   for (int i=0; i<num_records; ++i) {
@@ -259,33 +288,17 @@ void XeosColdNuclear<FR>::ReadEosTables() {
       break; // skip empty / incomplete lines in the end of file
     }
 
+    for (int j=0;j<num_fields;++j)
+      (*table_nvs[j])(i)= fields[j];
+
+    // format-specific quirks
     switch (format) {
       case format_type::kFourColumnsCGS:
-        rho_table(i)= fields[0];
-        pres_table(i)= fields[1];
-        enth_table(i)= exp(fields[2]/c2) * c2;
-        nbar_table(i)= fields[3];
+        (*table_nvs[2])(i)= exp(fields[2]/c2) * c2;
         break;
 
       case format_type::kSixteenColumnsNuclear:
-        pres_table(i)= fields[0];
-        rho_table(i) = pow(10.,fields[1]);
-        ye_table(i) =  fields[2];
-        eps_table(i)=  fields[3];
-
-        muhat_table(i)=fields[4];
-        sc2_table(i)= fields[5];
-        ent_table(i)= fields[6];
-
-        Xn_table(i) = fields[7];
-        Xp_table(i) = fields[8];
-        Xd_table(i) = fields[9];
-        Xt_table(i) = fields[10];
-        Xh_table(i) = fields[11];
-        Xa_table(i) = fields[12];
-        Xheavy_table(i) = fields[13];
-        Abar_table(i) = fields[14];
-        Zbar_table(i) = fields[15];
+        (*table_nvs[1])(i)= pow(10.,fields[1]);
         break;
 
       default:
@@ -293,26 +306,8 @@ void XeosColdNuclear<FR>::ReadEosTables() {
     }
   }
 
-  // convert to eos_units
-  rho_table.ConvertTo(eos_units);
-  pres_table.ConvertTo(eos_units);
-  enth_table.ConvertTo(eos_units);
-  nbar_table.ConvertTo(eos_units);
-  ye_table.ConvertTo(eos_units);
-  eps_table.ConvertTo(eos_units);
-  muhat_table.ConvertTo(eos_units);
-  sc2_table.ConvertTo(eos_units);
-  ent_table.ConvertTo(eos_units);
-
-  Xn_table.ConvertTo(eos_units);
-  Xp_table.ConvertTo(eos_units);
-  Xd_table.ConvertTo(eos_units);
-  Xt_table.ConvertTo(eos_units);
-  Xh_table.ConvertTo(eos_units);
-  Xa_table.ConvertTo(eos_units);
-  Xheavy_table.ConvertTo(eos_units);
-  Abar_table.ConvertTo(eos_units);
-  Zbar_table.ConvertTo(eos_units);
+  for (int i=0;i<num_fields;++i)
+    table_pqs[i]-> ConvertTo(eos_units);
 
 } // ReadEosTable()
 
@@ -321,89 +316,21 @@ void XeosColdNuclear<FR>::ReadEosTables() {
 // Return a point of the one-dimensional grid
 //
 template <class FR>
-double XeosColdNuclear<FR>::EosTableGridPoint (
+double XeosColdNuclear<FR>::GridPoint (
     const Pq var, const int i) const {
-  /* TODO */
   double retval;
-  const NvDensity::size_type j = i;
+  int j;
   assert (i>=0 && i<num_records);
-  switch(var) {
-    case Pq::BaryonNumberDensity:
-      retval = nbar_table(j);
+
+  for (j=0; j<num_fields; ++j) {
+    if (var == table_pqs[j]-> PqKind())
       break;
-
-    case Pq::ChemPotentialDiff:
-      retval = muhat_table(j);
-      break;
-
-    case Pq::Density:
-      retval = rho_table(j);
-      break;
-
-    case Pq::ElectronFraction:
-      retval = ye_table(j);
-      break;
-
-    case Pq::Enthalpy:
-      retval = enth_table(j);
-      break;
-
-    case Pq::Pressure:
-      retval = pres_table(j);
-      break;
-
-    case Pq::SoundSpeedSq:
-      retval = sc2_table(j);
-      break;
-
-    case Pq::SpecificEntropy:
-      retval = ent_table(j);
-      break;
-
-    case Pq::SpecificInternalEnergy:
-      retval = eps_table(j);
-      break;
-
-    case Pq::NeutronMassFraction:
-      retval = Xn_table(j);
-      break;
-
-    case Pq::ProtonMassFraction:
-      retval = Xp_table(j);
-      break;
-
-    case Pq::DeuteronMassFraction:
-      retval = Xd_table(j);
-      break;
-
-    case Pq::TritonMassFraction:
-      retval = Xt_table(j);
-      break;
-
-    case Pq::HelionMassFraction:
-      retval = Xh_table(j);
-      break;
-
-    case Pq::AlphaMassFraction:
-      retval = Xa_table(j);
-      break;
-
-    case Pq::HeavyNucMassFraction:
-      retval = Xheavy_table(j);
-      break;
-
-    case Pq::AverageAtomicMass:
-      retval = Abar_table(j);
-      break;
-
-    case Pq::AverageNuclearCharge:
-      retval = Zbar_table(j);
-      break;
-
-    default:
-      assert (false);
-
   }
+  if (j<num_fields)
+    retval = (*table_nvs[j])(i);
+  else
+    assert (false); // physical quantity is not found
+
   return retval;
 }
 
@@ -446,11 +373,11 @@ bool XeosColdNuclear<FR>::ConsistencyCheck() const {
   switch(format) {
     case XeosColdNuclearFormat::kFourColumnsCGS:
       for (int i=0; i<num_records; ++i) {
-        rho = rho_table(i);
-        pres = pres_table(i);
-        enth = enth_table(i);
-        nbar = nbar_table(i);
-        if (consistency_check_threshold <  
+        rho =  (*table_nvs[0])(i);
+        pres = (*table_nvs[1])(i);
+        enth = (*table_nvs[2])(i);
+        nbar = (*table_nvs[3])(i);
+        if (consistency_check_threshold <
             fabs(1.0 - (rho*c2 + pres)/(nbar*mb*enth))) {
           retval = false;
           std::cerr << std::scientific << std::setprecision(12);
@@ -462,14 +389,14 @@ bool XeosColdNuclear<FR>::ConsistencyCheck() const {
         }
       }
     break;
-  
+
   case XeosColdNuclearFormat::kSixteenColumnsNuclear:
     /*      +
        TODO
      +      */
     retval = true;
     break;
-  
+
   default:
     assert (false);
   } // switch (format)
@@ -480,103 +407,45 @@ bool XeosColdNuclear<FR>::ConsistencyCheck() const {
 } // namespace xeos
 #endif // XEOS_XEOSCOLDN_H_
 
-#if 1
+#if 0
 #include <iostream>
 
 int main() {
   using namespace std;
   using namespace xeos;
 
-  PhysicalQuantity::SetGlobalUnits(PhUnits::GR);
+  PhysicalQuantity::SetGlobalUnits(PhUnits::NUCLEAR);
 
-  XeosColdNuclear<AsciiFileReader> 
-      eSFHo("../data/rnsid/sfho_0.1MeV_beta.txt", 
-      XeosColdNuclearFormat::kSixteenColumnsNuclear);
-  XeosColdNuclear<AsciiFileReader> 
-      eosA("../data/rnsid/eosA", 
+  XeosColdNuclear<AsciiFileReader>
+      eosA("../data/rnsid/eosA",
       XeosColdNuclearFormat::kFourColumnsCGS);
- 
-  eosA.ConsistencyCheck();
+  XeosColdNuclear<AsciiFileReader>
+      eSFHo("../data/rnsid/sfho_0.1MeV_beta.txt",
+      XeosColdNuclearFormat::kSixteenColumnsNuclear);
 
-  NvVelocity *nvel = new NvVelocity({10,20,30}, PhUnits::SI);
-  NvPressure *nprs = new NvPressure({1.,2.,3.}, PhUnits::SI);
-  PhysicalQuantity *et[2]; // et = {&nvel,&nprs};
-  NVector<double> *pv[2];  // = {&nvel,&nprs};
-  et[0] = nvel; pv[0] = nvel;
-  et[1] = nprs; pv[1] = nprs;
-  for (int i=0;i<2;++i) {
-    et[i]-> ConvertTo(PhUnits::CGS);
-    for (int j=0;j<3;++j) 
-      cout << (*pv[i])(j) << " ";
-    cout << endl;
-  }
-
-/*
-  PhysicalQuantity *et;
-  NVector<double> *pv;
-  NvVelocity *nvel = new NvVelocity({10,20,30}, PhUnits::SI);
-  et = (PhysicalQuantity*) nvel;
-  pv = (NVector<double>*) nvel;
-  cout << "et=" << hex << et << " pv=" << hex << pv << endl;
-  for (int j=0;j<3; ++j) 
-    cout << (*pv)(j) << " ";
-  cout << endl;
- */  
-
-
-
-/*
-  eSFHo.ReadEosTables();
   cout << scientific << setprecision(12) << setw(18);
-  for (int i=0;i<eSFHo.EosTableGridSize(Pq::Density);++i) 
-    cout << eSFHo.EosTableGridPoint(Pq::Density, i) << " " 
-         << eSFHo.EosTableGridPoint(Pq::Pressure,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::ElectronFraction,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::ChemPotentialDiff,i) << " " 
-         << eSFHo.EosTableGridPoint(Pq::SoundSpeedSq,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::SpecificEntropy,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::NeutronMassFraction,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::ProtonMassFraction,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::DeuteronMassFraction,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::TritonMassFraction,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::HelionMassFraction,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::AlphaMassFraction,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::HeavyNucMassFraction,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::AverageAtomicMass,i) << " "
-         << eSFHo.EosTableGridPoint(Pq::AverageNuclearCharge,i) << " "
+  for (int i=0;i<eSFHo.GridSize(Pq::Density);++i)
+    cout << eSFHo.GridPoint(Pq::Density, i) << " "
+         << eSFHo.GridPoint(Pq::Pressure,i) << " "
+         << eSFHo.GridPoint(Pq::ElectronFraction,i) << " "
+         << eSFHo.GridPoint(Pq::ChemPotentialDiff,i) << " "
+         << eSFHo.GridPoint(Pq::SoundSpeedSq,i) << " "
+         << eSFHo.GridPoint(Pq::SpecificEntropy,i) << " "
+         << eSFHo.GridPoint(Pq::NeutronMassFraction,i) << " "
+         << eSFHo.GridPoint(Pq::ProtonMassFraction,i) << " "
+         << eSFHo.GridPoint(Pq::DeuteronMassFraction,i) << " "
+         << eSFHo.GridPoint(Pq::TritonMassFraction,i) << " "
+         << eSFHo.GridPoint(Pq::HelionMassFraction,i) << " "
+         << eSFHo.GridPoint(Pq::AlphaMassFraction,i) << " "
+         << eSFHo.GridPoint(Pq::HeavyNucMassFraction,i) << " "
+         << eSFHo.GridPoint(Pq::AverageAtomicMass,i) << " "
+         << eSFHo.GridPoint(Pq::AverageNuclearCharge,i) << " "
          << endl;
   cout << endl << endl;
 
-  eosA.ReadEosTables();
-  for (int i=0;i<eosA.EosTableGridSize(Pq::Density);++i) 
-    cout << eosA.EosTableGridPoint(Pq::Density, i) << " " 
-         << eosA.EosTableGridPoint(Pq::Pressure,i) << endl;
-*/
+  for (int i=0;i<eosA.GridSize(Pq::Density);++i)
+    cout << eosA.GridPoint(Pq::Density, i) << " "
+         << eosA.GridPoint(Pq::Pressure,i) << endl;
 
-/* double fields[20];
-  AsciiFileReader A("../data/rnsid/sfho_0.1MeV_beta.txt");
-  cout << "A.GetFilename() -> " << A.GetFilename() << endl;
-  int file_len = A.NumLines();
-  cout << "A.NumLines() ->    " << file_len << endl;
-  A.Open();
-  int header_len = A.SkipHashHeader();
-  cout << "A.SkipHashHeader() -> " << header_len << endl;
-  int n_fields;
-  cout << scientific << setprecision(6);
-  A.Rewind(); // rewind;
-  //A.SkipHashHeader();
-  A.SkipHeader(header_len);
-  for (int l=0; l < file_len - header_len; ++l) {
-    n_fields = A.ReadFields(20,fields);
-    if (n_fields<16)
-      break;
-    //cout << setw(4) << l << ":";
-    cout << fields[0];
-    for (int i=1;i<n_fields;++i)
-      cout << " " << fields[i];
-    cout << endl;
-  }
-  A.Close();
- */
 }
 #endif

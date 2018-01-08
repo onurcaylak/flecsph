@@ -76,19 +76,19 @@ class XeosTabulated : public XeosBase {
   // a uniformly-spaced grid, or a custom grid like this:
   // T = {0.1, 0.2, 0.5, 1.0, 2.0, 10} [GK]
   virtual double
-  EosTableGridPoint(const Pq var, const int i) const = 0;
+  GridPoint(const Pq var, const int i) const = 0;
 
   // Total number of points in the table
   // along the primary variable direction
   virtual const int
-  EosTableGridSize(const Pq) const = 0;
+  GridSize(const Pq) const = 0;
 
   double EosTableMinval(const Pq var) const {
-    return EosTableGridPoint(var, 0);
+    return GridPoint(var, 0);
   }
 
   double EosTableMaxval(const Pq var) const {
-    return EosTableGridPoint(var, EosTableGridSize(var)-1);
+    return GridPoint(var, GridSize(var)-1);
   }
 
  protected:
