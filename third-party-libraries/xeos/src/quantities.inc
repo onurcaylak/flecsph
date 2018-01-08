@@ -8,9 +8,9 @@
  * @author Oleg Korobkin
  * @date 2018-01-05
  * @brief This file is included into physquan.h: it contains
- *        shortcut typedefs and database of dimensions / output 
- *        formats for known physical quantities. This is the 
- *        file you want to edit in order to add a new physical 
+ *        shortcut typedefs and database of dimensions / output
+ *        formats for known physical quantities. This is the
+ *        file you want to edit in order to add a new physical
  *        quantity.
  *        Use :set syntax=cpp for syntax highlighting in vim.
  */
@@ -31,16 +31,43 @@ PQ_TYPEDEF(SpecificInternalEnergy)
 PQ_TYPEDEF(RestMassDensity)
 PQ_TYPEDEF(BaryonNumberDensity)
 PQ_TYPEDEF(ElectronFraction)
+PQ_TYPEDEF(ChemPotentialDiff)
+PQ_TYPEDEF(SoundSpeedSq)
+PQ_TYPEDEF(SpecificEntropy)
+PQ_TYPEDEF(NeutronMassFraction)
+PQ_TYPEDEF(ProtonMassFraction)
+PQ_TYPEDEF(DeuteronMassFraction)
+PQ_TYPEDEF(TritonMassFraction)
+PQ_TYPEDEF(HelionMassFraction)
+PQ_TYPEDEF(AlphaMassFraction)
+PQ_TYPEDEF(HeavyNucMassFraction)
+PQ_TYPEDEF(AverageAtomicMass)
+PQ_TYPEDEF(AverageNuclearCharge)
 
 // return string identifying physical quantity
 const std::string PqString(const Pq kind) {
   std::string s;
   switch(kind) {
+    case Pq::AlphaMassFraction:
+      s = "mass fraction of alphas";
+      break;
+    case Pq::AverageAtomicMass:
+      s = "average atomic mass";
+      break;
+    case Pq::AverageNuclearCharge:
+      s = "average nuclear charge";
+      break;
     case Pq::BaryonNumberDensity:
       s = "baryon number density";
       break;
+    case Pq::ChemPotentialDiff:
+      s = "difference in n-p chemical potentials";
+      break;
     case Pq::Density:
       s = "density";
+      break;
+    case Pq::DeuteronMassFraction:
+      s = "mass fraction of deuterons";
       break;
     case Pq::ElectronFraction:
       s = "electron fraction";
@@ -48,20 +75,41 @@ const std::string PqString(const Pq kind) {
     case Pq::Enthalpy:
       s = "enthalpy";
       break;
+    case Pq::HeavyNucMassFraction:
+      s = "mass fraction of heavy nuclei";
+      break;
+    case Pq::HelionMassFraction:
+      s = "mass fraction of helions";
+      break;
+    case Pq::NeutronMassFraction:
+      s = "mass fraction of neutrons";
+      break;
     case Pq::Other:
       s = "other";
       break;
     case Pq::Pressure:
       s = "pressure";
       break;
+    case Pq::ProtonMassFraction:
+      s = "mass fraction of protons";
+      break;
     case Pq::RestMassDensity:
       s = "rest mass density";
+      break;
+    case Pq::SoundSpeedSq:
+      s = "sound speed squared";
+      break;
+    case Pq::SpecificEntropy:
+      s = "specific entropy";
       break;
     case Pq::SpecificInternalEnergy:
       s = "specific internal energy";
       break;
     case Pq::Temperature:
       s = "temperature";
+      break;
+    case Pq::TritonMassFraction:
+      s = "mass fraction of tritons";
       break;
     case Pq::Undefined:
       s = "undefined";
@@ -83,7 +131,18 @@ FillPhysicalDimensions (const Pq q, float retval[]) {
   for(int i=0;i<num_basic_units;i++) retval[i] = 0;
 
   switch(q) {
+    // dimensionless quantities and other
     case Pq::Other:
+    case Pq::ElectronFraction:
+    case Pq::NeutronMassFraction:
+    case Pq::ProtonMassFraction:
+    case Pq::DeuteronMassFraction:
+    case Pq::TritonMassFraction:
+    case Pq::HelionMassFraction:
+    case Pq::AlphaMassFraction:
+    case Pq::HeavyNucMassFraction:
+    case Pq::AverageAtomicMass:
+    case Pq::AverageNuclearCharge:
       break;
 
     case Pq::Density:
@@ -91,7 +150,7 @@ FillPhysicalDimensions (const Pq q, float retval[]) {
       retval[ms] = 1;
       retval[ln] = -3;
       break;
-    
+
     case Pq::BaryonNumberDensity:
       retval[ln] = -3;
       break;
@@ -101,20 +160,24 @@ FillPhysicalDimensions (const Pq q, float retval[]) {
       retval[ln] = -1;
       retval[tm] = -2;
       break;
-    
+
     case Pq::Enthalpy:
     case Pq::SpecificInternalEnergy:
+    case Pq::SoundSpeedSq:
+    case Pq::ChemPotentialDiff:
       retval[ms] = 0;
       retval[ln] = 2;
       retval[tm] = -2;
       break;
-    
-    case Pq::Temperature:
-      retval[Tp] = 1;
+
+    case Pq::SpecificEntropy:
+      retval[ln] = 2;
+      retval[tm] = -2;
+      retval[Tp] = -1;
       break;
 
-    // dimensionless quantities
-    case Pq::ElectronFraction:
+    case Pq::Temperature:
+      retval[Tp] = 1;
       break;
 
     default:
@@ -169,6 +232,7 @@ PqUnitsString(const Pq pq_kind, const PhUnits u) {
 
     case Pq::SpecificInternalEnergy:
     case Pq::Enthalpy:
+    case Pq::ChemPotentialDiff:
       switch(u) {
         case PhUnits::CGS:
           str = "erg/g";
@@ -181,6 +245,44 @@ PqUnitsString(const Pq pq_kind, const PhUnits u) {
           break;
         case PhUnits::GR:
           str = "1";
+          break;
+        default:
+          assert (false);
+      }
+      break;
+
+    case Pq::SoundSpeedSq:
+      switch(u) {
+        case PhUnits::CGS:
+          str = "cm^2/s^2";
+          break;
+        case PhUnits::SI:
+          str = "m^2/s^2";
+          break;
+        case PhUnits::NUCLEAR:
+          str = "c^2";
+          break;
+        case PhUnits::GR:
+          str = "1";
+          break;
+        default:
+          assert (false);
+      }
+      break;
+
+    case Pq::SpecificEntropy:
+      switch(u) {
+        case PhUnits::CGS:
+          str = "erg/g/K"; // TODO: check this!
+          break;
+        case PhUnits::SI:
+          str = "J/kg/K";
+          break;
+        case PhUnits::NUCLEAR:
+          str = "kB/baryon";
+          break;
+        case PhUnits::GR:
+          str = "1/K";
           break;
         default:
           assert (false);
@@ -202,6 +304,15 @@ PqUnitsString(const Pq pq_kind, const PhUnits u) {
       break;
 
     case Pq::ElectronFraction:
+    case Pq::NeutronMassFraction:
+    case Pq::ProtonMassFraction:
+    case Pq::DeuteronMassFraction:
+    case Pq::TritonMassFraction:
+    case Pq::HelionMassFraction:
+    case Pq::AlphaMassFraction:
+    case Pq::HeavyNucMassFraction:
+    case Pq::AverageAtomicMass:
+    case Pq::AverageNuclearCharge:
       str = "1";
       break;
 

@@ -33,7 +33,19 @@ enum class Pq {
   Enthalpy,
   RestMassDensity,
   BaryonNumberDensity,
-  ElectronFraction
+  ElectronFraction,
+  ChemPotentialDiff,
+  SoundSpeedSq,
+  SpecificEntropy,
+  NeutronMassFraction,
+  ProtonMassFraction,
+  DeuteronMassFraction,
+  TritonMassFraction,
+  HelionMassFraction,
+  AlphaMassFraction,
+  HeavyNucMassFraction,
+  AverageAtomicMass,
+  AverageNuclearCharge
 };
 
 // conversion factor with respect to cgs
