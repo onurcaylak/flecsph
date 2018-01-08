@@ -81,6 +81,7 @@ class XeosColdNuclear : public XeosTabulated {
 
   virtual bool
   ConsistencyCheck() const override;
+  double consistency_check_threshold = 2e-5;
 
  protected:
   // units in which to keep the tables
@@ -183,6 +184,11 @@ XeosColdNuclear<FR>::XeosColdNuclear (
     default:
       assert(false); // format not implemented
   }
+
+  ReadEosTables();
+  if (!ConsistencyCheck())
+    std::cerr << "WARNING(XeosColdNuclear): equation of state"
+              << "failed consistency check!" << std::endl;
 }
 
 //
@@ -194,6 +200,10 @@ void XeosColdNuclear<FR>::ReadEosTables() {
   int file_len = freader.NumLines();
   int header_len;
   double fields[16];
+
+  PqVelocity clight(1.0, PhUnits::GR); // light speed squared
+  clight.ConvertTo(PhUnits::CGS);
+  const double c2 = (double)clight * (double)clight;
   
   switch (format) {
     case format_type::kFourColumnsCGS:
@@ -251,7 +261,7 @@ void XeosColdNuclear<FR>::ReadEosTables() {
       case format_type::kFourColumnsCGS:
         rho_table(i)= fields[0];
         pres_table(i)= fields[1];
-        enth_table(i)= fields[2];
+        enth_table(i)= exp(fields[2]/c2) * c2;
         nbar_table(i)= fields[3];
         break;
 
@@ -421,23 +431,61 @@ void XeosColdNuclear<FR>::DfDx (const int num_out, const Pq dX,
 
 template <class FR>
 bool XeosColdNuclear<FR>::ConsistencyCheck() const {
-  /*      +
-     TODO
-   +      */
-  return false;
+  bool retval = true;
+
+  double rho, pres, enth, nbar;
+  PqVelocity clight(1.0, PhUnits::GR);
+  PqMass m_baryon(1.66e-24, PhUnits::CGS);
+  clight.ConvertTo(eos_units);
+  m_baryon.ConvertTo(eos_units);
+  double c2 = (double)clight * (double)clight;
+  double mb = (double)m_baryon;
+
+  switch(format) {
+    case XeosColdNuclearFormat::kFourColumnsCGS:
+      for (int i=0; i<num_records; ++i) {
+        rho = rho_table(i);
+        pres = pres_table(i);
+        enth = enth_table(i);
+        nbar = nbar_table(i);
+        if (consistency_check_threshold <  
+            fabs(1.0 - (rho*c2 + pres)/(nbar*mb*enth))) {
+          retval = false;
+          std::cerr << std::scientific << std::setprecision(12);
+          std::cerr << "XeosColdNuclear::ConsistencyCheck failed "
+                    << "at grid point i=" << i << ": " << std::endl;
+          std::cerr << "    (rho + pres/c2)/(nbar*mb)| = "
+                    << (rho + pres/c2)/(nbar*mb) << std::endl;
+          std::cerr << "    enth/c2 = " << enth/c2 << std::endl;
+        }
+      }
+    break;
+  
+  case XeosColdNuclearFormat::kSixteenColumnsNuclear:
+    /*      +
+       TODO
+     +      */
+    retval = true;
+    break;
+  
+  default:
+    assert (false);
+  } // switch (format)
+
+  return retval;
 }
 
 } // namespace xeos
 #endif // XEOS_XEOSCOLDN_H_
 
-#if 1
+#if 0
 #include <iostream>
 
 int main() {
   using namespace std;
   using namespace xeos;
 
-  PhysicalQuantity::SetGlobalUnits(PhUnits::NUCLEAR);
+  PhysicalQuantity::SetGlobalUnits(PhUnits::GR);
 
   XeosColdNuclear<AsciiFileReader> 
       eSFHo("../data/rnsid/sfho_0.1MeV_beta.txt", 
@@ -445,7 +493,10 @@ int main() {
   XeosColdNuclear<AsciiFileReader> 
       eosA("../data/rnsid/eosA", 
       XeosColdNuclearFormat::kFourColumnsCGS);
-  
+ 
+  eosA.ConsistencyCheck();
+
+/*
   eSFHo.ReadEosTables();
   cout << scientific << setprecision(12) << setw(18);
   for (int i=0;i<eSFHo.EosTableGridSize(Pq::Density);++i) 
@@ -471,6 +522,7 @@ int main() {
   for (int i=0;i<eosA.EosTableGridSize(Pq::Density);++i) 
     cout << eosA.EosTableGridPoint(Pq::Density, i) << " " 
          << eosA.EosTableGridPoint(Pq::Pressure,i) << endl;
+*/
 
 /* double fields[20];
   AsciiFileReader A("../data/rnsid/sfho_0.1MeV_beta.txt");

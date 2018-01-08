@@ -45,7 +45,9 @@ enum class Pq {
   AlphaMassFraction,
   HeavyNucMassFraction,
   AverageAtomicMass,
-  AverageNuclearCharge
+  AverageNuclearCharge,
+  Velocity,
+  Mass
 };
 
 // conversion factor with respect to cgs

@@ -43,6 +43,8 @@ PQ_TYPEDEF(AlphaMassFraction)
 PQ_TYPEDEF(HeavyNucMassFraction)
 PQ_TYPEDEF(AverageAtomicMass)
 PQ_TYPEDEF(AverageNuclearCharge)
+PQ_TYPEDEF(Velocity)
+PQ_TYPEDEF(Mass)
 
 // return string identifying physical quantity
 const std::string PqString(const Pq kind) {
@@ -81,6 +83,9 @@ const std::string PqString(const Pq kind) {
     case Pq::HelionMassFraction:
       s = "mass fraction of helions";
       break;
+    case Pq::Mass:
+      s = "mass";
+      break;
     case Pq::NeutronMassFraction:
       s = "mass fraction of neutrons";
       break;
@@ -110,6 +115,9 @@ const std::string PqString(const Pq kind) {
       break;
     case Pq::TritonMassFraction:
       s = "mass fraction of tritons";
+      break;
+    case Pq::Velocity:
+      s = "velocity";
       break;
     case Pq::Undefined:
       s = "undefined";
@@ -165,7 +173,6 @@ FillPhysicalDimensions (const Pq q, float retval[]) {
     case Pq::SpecificInternalEnergy:
     case Pq::SoundSpeedSq:
     case Pq::ChemPotentialDiff:
-      retval[ms] = 0;
       retval[ln] = 2;
       retval[tm] = -2;
       break;
@@ -176,8 +183,17 @@ FillPhysicalDimensions (const Pq q, float retval[]) {
       retval[Tp] = -1;
       break;
 
+    case Pq::Mass:
+      retval[ms] = 1;
+      break;
+
     case Pq::Temperature:
       retval[Tp] = 1;
+      break;
+
+    case Pq::Velocity:
+      retval[ln] = 1;
+      retval[tm] = -1;
       break;
 
     default:
@@ -336,6 +352,44 @@ PqUnitsString(const Pq pq_kind, const PhUnits u) {
       }
       break;
     
+    case Pq::Mass:
+      switch(u) {
+        case PhUnits::CGS:
+          str = "g";
+          break;
+        case PhUnits::SI:
+          str = "kg";
+          break;
+        case PhUnits::NUCLEAR:
+          str = "MeV/c^2";
+          break;
+        case PhUnits::GR:
+          str = "M";
+          break;
+        default:
+          assert (false);
+      }
+      break;
+
+    case Pq::Velocity:
+      switch(u) {
+        case PhUnits::CGS:
+          str = "cm/s";
+          break;
+        case PhUnits::SI:
+          str = "m/s";
+          break;
+        case PhUnits::NUCLEAR:
+          str = "1";
+          break;
+        case PhUnits::GR:
+          str = "1";
+          break;
+        default:
+          assert (false);
+      }
+      break;
+
     default:
       assert (false);
   } // switch pq_kind
