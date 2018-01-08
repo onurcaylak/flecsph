@@ -97,6 +97,8 @@ class XeosColdNuclear : public XeosTabulated {
   int num_records;
   int num_fields;
   format_type format;
+  NVector<double> *table_nvs[];
+  PhysicalQuantity *table_pqs[];
 
   NvPressure pres_table {PhUnits::CGS};
   NvDensity  rho_table  {PhUnits::CGS};
@@ -478,7 +480,7 @@ bool XeosColdNuclear<FR>::ConsistencyCheck() const {
 } // namespace xeos
 #endif // XEOS_XEOSCOLDN_H_
 
-#if 0
+#if 1
 #include <iostream>
 
 int main() {
@@ -495,6 +497,33 @@ int main() {
       XeosColdNuclearFormat::kFourColumnsCGS);
  
   eosA.ConsistencyCheck();
+
+  NvVelocity *nvel = new NvVelocity({10,20,30}, PhUnits::SI);
+  NvPressure *nprs = new NvPressure({1.,2.,3.}, PhUnits::SI);
+  PhysicalQuantity *et[2]; // et = {&nvel,&nprs};
+  NVector<double> *pv[2];  // = {&nvel,&nprs};
+  et[0] = nvel; pv[0] = nvel;
+  et[1] = nprs; pv[1] = nprs;
+  for (int i=0;i<2;++i) {
+    et[i]-> ConvertTo(PhUnits::CGS);
+    for (int j=0;j<3;++j) 
+      cout << (*pv[i])(j) << " ";
+    cout << endl;
+  }
+
+/*
+  PhysicalQuantity *et;
+  NVector<double> *pv;
+  NvVelocity *nvel = new NvVelocity({10,20,30}, PhUnits::SI);
+  et = (PhysicalQuantity*) nvel;
+  pv = (NVector<double>*) nvel;
+  cout << "et=" << hex << et << " pv=" << hex << pv << endl;
+  for (int j=0;j<3; ++j) 
+    cout << (*pv)(j) << " ";
+  cout << endl;
+ */  
+
+
 
 /*
   eSFHo.ReadEosTables();
