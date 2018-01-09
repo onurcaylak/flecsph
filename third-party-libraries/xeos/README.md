@@ -1,9 +1,9 @@
 # XEOS library
 
-The purpose of this project is to create a uniform user-friendly
+This project aims at creating a uniform user-friendly
 C++ API to a variety of equations of state, from simple analytic 
-ones such as a polytrope or an ideal gas, to more complex multi-
-parametric EoS tables such as 
+ones such as a polytrope or an ideal gas, to more complex 
+multi-parametric EoS tables like the ones provided by 
 [CompOSE](https://compose.obspm.fr/).
 
 Use case examples:
@@ -21,51 +21,56 @@ Notice how you can specify polytropic constant in units which
 are different from global. It is automatically converted to 
 global units.
 ```cpp
-  XeosPolytropic eos1 = new XeosPolytropic(
-   4./3.,             // Gamma
+  XeosPolytropic eos_poly = new XeosPolytropic(
    0.01,              // K in P = K*rho^Gamma 
+   4./3.,             // Gamma
    PhUnits::NUCLEAR); // units of K (different from global)
 ```
 
-3. Create CompOSE tabulated EOS with three parameters:
-(TODO: implement!!)
+3. Create an instance of more complex, tabulated CompOSE EOS with three parameters (TODO):
 ```cpp
-  XeosCompose3D eos2 = new XeosCompose3D(
+  XeosCompose3D eos_compose = new XeosCompose3D(
    "data/compose/eos.thermo",  // path to the data file
-   {Pq::Pressure,              // primary variables
+   {Pq::Pressure,              // read only these variables
     Pq::ElectronFraction,
     Pq::Temperature,
     Pq::BaryonMassDensity},  
    PhUnits::NUCLEAR);  // CompOSE tables are in nuclear units
 ```
 
-4. We can use xeos_base class to access both equations of 
-state in a unified manner through e.g. a pointer:
-```cpp  
-  XeosBase *eosptr = { &eos1, &eos2 };
-```
-
-5. In this example, eos1 has overloaded `operator()`, which has two 
-arguments: input and output. The first one is a const reference, 
-while the second a pointer. The following code computes pressure
-from density using eos1 object:
+4. Equation of state uses physical quantities as input and output
+parameters. It computes output using overloaded `operator()`, 
+with the first argument being a const reference, and the second 
+being a pointer. Consider the following example of using `eos_poly`
+to compute pressure from density:
 ```cpp
-  PqDensity  rho(12.0); // specify density in [g/cm3]
+  PqDensity  rho(12.0); // define density in [g/cm3]
   PqPressure P;         // declare pressure variable [dynes]
   eos1(rho, &P);        // arg1: input, arg2: output.
 ```
 
-6. The following code compute pressure at {rho, eps, Ye} for the 
-CompOSE eos (TODO: not implemented yet):
+5. The following code compute pressure at {rho, eps, Ye} for the 
+CompOSE eos (TODO):
 ```cpp
   PqSpecificInternalEnergy eps(0.01); // specify eps [erg/g]
   PqElectronFraction         Ye(0.5); // specify Ye [mol/g]
-  eos2(rho,eps,Ye, P);  // args 1-3: input, arg 4: output
+  eos2(rho,eps,Ye, &P);   // args 1-3: input, arg 4: output
 ```
 
-7. Class `PhysicalNVector<Kind,ScalarType>` is a template class for 
-an N-dimensional array of physical quantities, handy for vector 
-operations. E.g.: computing temperature array:
+6. All equation-of-state objects are derived from base class
+`xeos_base`, which can be used to access both equations in a unified
+manner, e.g. through a pointer:
+```cpp  
+  XeosBase *eosptr = { &eos1, &eos2 };
+  (*eosptr[0])(rho, &P);
+  (*eosptr[1])(rho,eps,Ye, &P);
+```
+
+7. Equations of state classes also take vector quantities as 
+arguments. Standard class for vector operations is 
+`PhysicalNVector<Kind,ScalarType>`, which is a templated class
+for representing N-dimensional arrays of physical quantities. 
+Example of computing an array of temperatures:
 ```cpp
   typedef 
     PhysicalNVector<Pq::Temperature,double> NvTemperature;
