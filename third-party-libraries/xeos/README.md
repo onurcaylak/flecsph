@@ -46,7 +46,7 @@ to compute pressure from density:
 ```cpp
   PqDensity  rho(12.0); // define density in [g/cm3]
   PqPressure P;         // declare pressure variable [dynes]
-  eos1(rho, &P);        // arg1: input, arg2: output.
+  eos_poly(rho, &P);        // arg1: input, arg2: output.
 ```
 
 5. The following code compute pressure at {rho, eps, Ye} for the 
@@ -54,7 +54,7 @@ CompOSE eos (TODO):
 ```cpp
   PqSpecificInternalEnergy eps(0.01); // specify eps [erg/g]
   PqElectronFraction         Ye(0.5); // specify Ye [mol/g]
-  eos2(rho,eps,Ye, &P);   // args 1-3: input, arg 4: output
+  eos_compose(rho,eps,Ye, &P);   // args 1-3: input, arg 4: output
 ```
 
 6. All equation-of-state objects are derived from base class
@@ -90,8 +90,8 @@ Example of computing an array of temperatures:
 
   // now everything is ready for an EoS function call, 
   // which is just like before for the scalars:
-  eos1(rhos, Ps);
-  eos2(rhos, epss, Yess, Temps);
+  eos_poly(rhos, &Ps);
+  eos_compose(rhos, epss, Yess, &Temps);
 ```
 
 8. TODO
@@ -100,8 +100,8 @@ state have interface which allows computation of several
 physical quantities at once. 
 ```cpp
   NvEntropy Ents(Np);
-  eos2 (3, (eos_in) {&rhos, &epss, &Yess},  // input arrays
-           (eos_out){&Temps, &Ps, &Ents);  // output arrays
+  eos_compose (3, (eos_in) {&rhos, &epss, &Yess},  // input arrays
+                  (eos_out){&Temps, &Ps, &Ents);  // output arrays
 ```
 
 
