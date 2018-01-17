@@ -46,22 +46,22 @@ to compute pressure from density:
 ```cpp
   PqDensity  rho(12.0); // define density in [g/cm3]
   PqPressure P;         // declare pressure variable [dynes]
-  eos_poly(rho, &P);        // arg1: input, arg2: output.
+  eos_poly(rho, &P);    // arg1: input, arg2: output.
 ```
 
 5. The following code compute pressure at {rho, eps, Ye} for the 
 CompOSE eos (TODO):
 ```cpp
   PqSpecificInternalEnergy eps(0.01); // specify eps [erg/g]
-  PqElectronFraction         Ye(0.5); // specify Ye [mol/g]
-  eos_compose(rho,eps,Ye, &P);   // args 1-3: input, arg 4: output
+  PqElectronFraction         Ye(0.5); // specify Ye  [mol/g]
+  eos_compose(rho,eps,Ye, &P);        // args: 1-3: in, 4: out
 ```
 
 6. All equation-of-state objects are derived from base class
 `xeos_base`, which can be used to access both equations in a unified
 manner, e.g. through a pointer:
 ```cpp  
-  XeosBase *eosptr = { &eos1, &eos2 };
+  XeosBase *eosptr = { &eos_poly, &eos_compose };
   (*eosptr[0])(rho, &P);
   (*eosptr[1])(rho,eps,Ye, &P);
 ```
