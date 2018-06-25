@@ -120,7 +120,10 @@ struct tree_geometry<T, 1>
     const point_t& min_b2,
     const point_t& max_b2)
   {
-    return min_b1[0] < max_b1[0] && max_b1[0] > min_b2[0];
+    return max_b1[0] >= min_b2[0] && max_b1[0] <= max_b2[0] || 
+      min_b1[0] >= min_b2[0] && min_b1[0] <= max_b2[0] || 
+      min_b1[0] >= min_b2[0] && max_b1[0] <= max_b2[0] ||
+      min_b1[0] <= min_b2[0] && max_b1[0] >= max_b2[0];
   }
 
   // initial attempt to get this working, needs to be optimized
@@ -318,8 +321,8 @@ struct tree_geometry<T, 2>
     const point_t& min_b2,
     const point_t& max_b2)
   {
-    return min_b1[0] < max_b1[0] && max_b1[0] > min_b2[0] &&
-            min_b1[1] < max_b1[1] && max_b1[1] > min_b2[1];
+    return min_b1[0] < max_b2[0] && max_b1[0] > min_b2[0] &&
+            min_b1[1] < max_b2[1] && max_b1[1] > min_b2[1];
   }
 
 
@@ -491,9 +494,9 @@ struct tree_geometry<T, 3>
     const point_t& min_b2,
     const point_t& max_b2)
   {
-    return min_b1[0] < max_b1[0] && max_b1[0] > min_b2[0] &&
-            min_b1[1] < max_b1[1] && max_b1[1] > min_b2[1] && 
-            min_b1[2] < max_b1[2] && max_b1[2] > min_b2[2];
+    return min_b1[0] < max_b2[0] && max_b1[0] > min_b2[0] &&
+            min_b1[1] < max_b2[1] && max_b1[1] > min_b2[1] && 
+            min_b1[2] < max_b2[2] && max_b1[2] > min_b2[2];
   }
 
   /*!
@@ -1622,7 +1625,7 @@ public:
           force_calc(c,inter_list,radius,ef,std::forward<ARGS>(args)...);
         }
       }else{
-        if((int64_t)c->sub_entities() < ncritical && c->sub_entities() > 0){
+        if(c->sub_entities() < ncritical && c->sub_entities() > 0){
           #pragma omp task firstprivate(c)
           {
             std::vector<branch_t*> inter_list; 
@@ -1650,7 +1653,6 @@ public:
   {
     std::stack<branch_t*> stk; 
     stk.push(root());
-    //std::cout<<"sub_cells_inter: coord="<<b->get_coordinates()<<std::endl<<std::flush;
     while(!stk.empty()){
       branch_t* c = stk.top();
       stk.pop();
@@ -1699,7 +1701,7 @@ public:
       }else{
         for(int i=0; i<(1<<dimension); ++i){
           branch_t * next = child(c,i);
-          if(next->getMass() > 0.){
+          if(next->sub_entities() > 0.){
             stk.push(next);
           }
         }

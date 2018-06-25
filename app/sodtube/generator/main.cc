@@ -13,20 +13,104 @@
 
 namespace simulation_params {
   int64_t nparticles;        // global number of particles
-  int64_t nparticlesproc;    // number of particles per proc
   double ldistance;          // particles spacing
   double localgamma;         // polytropic index
   double smoothing_length;   // constant smoothing length
+  double length;             // Length of the tube
 
   // test conditions for two sides of the domain
   int    sodtest_num;            // which Sod test to generate
-  double rho_1, rho_2;           // densities
-  double vx_1, vx_2;             // velocities
-  double pressure_1, pressure_2; // pressures
+  double rho_l, rho_r;           // densities
+  double vx_l, vx_r;             // velocities
+  double pressure_l, pressure_r; // pressures
+  double distance_l, distance_r; // distances
 
   // output filename
   const char* fileprefix = "hdf5_sodtube";
   char output_filename[128];
+}
+
+
+double 
+cubic_spline_kernel(
+    double r, 
+    double h)
+{
+  double rh = r/h;
+  // Default 1D case
+  double sigma = 2./(3.*h);
+  if(gdimension == 2){
+    sigma = 10./(7.*M_PI*h*h);
+  }
+  double result = 0.; 
+  if (0.0 <= rh && rh <= 1.0) {
+    result = 1.0 - 1.5*rh*rh + .75*rh*rh*rh;
+    result *= sigma;  
+  }else if (1.0 < rh && rh <= 2.0) {
+    result = 0.25 * (2-rh)*(2-rh)*(2-rh);
+    result *= sigma; 
+  }
+  return result;
+} // kernel
+
+double compute_density(int source,double*x,double*h,double*mass)
+{
+  using namespace std;
+  using namespace simulation_params;
+  
+  double density = 0.;
+  for(int part = 0; part < nparticles; ++part){
+    double dist = fabs(x[part]-x[source]);
+    density += mass[part]*cubic_spline_kernel(dist, 
+      (h[part]+h[source])/2.);
+  }
+  return density;
+}
+
+
+double bisection_smoothing_length(double * x,double * h, double * mass,double * rho)
+{
+  using namespace std;
+  using namespace simulation_params;
+
+  double* min_h = new double[nparticles]();
+  double* max_h = new double[nparticles]();
+
+  int niter = 100;
+
+  for(int part = 0 ; part < nparticles; part++){
+    h[part] = 1.4*(mass[part]/rho[part]);
+    min_h[part] = h[part]-1.;
+    max_h[part] = h[part]+1.;
+    h[part] = (min_h[part]+max_h[part])/2.;
+    if(part == nparticles/2){
+      std::cout<<"init h="<<h[part]<<" min="<<min_h[part]<<" max="<<max_h[part]<<std::endl;
+    }
+  }
+
+  for(int i = 0 ; i < niter; ++i)
+  {
+    // For each particles 
+    for(int part = 0; part < nparticles; ++part){
+      // Compute the density 
+      double density = compute_density(part,x,h,mass);
+      if(part == nparticles/2){
+        std::cout<<"density="<<density<<" rho="<<rho[part]<<" h="<<h[part]<<std::endl;
+      }
+      // If not ok, change the h 
+      if(density > rho[part])
+      {
+        max_h[part] = h[part];
+      }else{
+        min_h[part] = h[part];
+      }
+    }
+    for(int part = 0 ; part < nparticles; ++part){
+      h[part] = (min_h[part]+max_h[part])/2.;
+    }
+  }
+  delete[] min_h;
+  delete[] max_h;
 }
 
 
@@ -37,13 +121,16 @@ void set_default_param(int rank, int size) {
   using namespace simulation_params;
 
   // number of particles
-  nparticles = 1000;
+  nparticles = 405;
 
   // equation of state parameters (one so far)
-  localgamma = 5./3.;
+  localgamma = 1.4;
 
   // run Sod test 1 by default
   sodtest_num = 1;
+
+  // Length of the tube 
+  length = 1.;
 }
 
 
@@ -79,9 +166,6 @@ void parse_command_line_options(int rank, int size, int argc, char* argv[]) {
 
       case 'n':
         nparticles = atoll(argv[++i]);
-        nparticlesproc = nparticles/size;
-        if(rank==size-1)
-          nparticlesproc = nparticles - nparticlesproc*(size-1);
         break;
 
       case 't':
@@ -107,47 +191,37 @@ void set_param(int rank, int size) {
   using namespace std;
   using namespace simulation_params;
 
-  // number of particles per core
-  nparticlesproc = nparticles/size + 1;
-  if(rank==size-1){
-    nparticlesproc = nparticles - nparticlesproc*(size-1);
-  }
-
-  // particle spacing and smoothing length
-  ldistance = 1.0/(double)nparticles;
-  smoothing_length = ldistance*10; // TODO: introduce \eta parameter
-
   // test selector
   switch (sodtest_num) {
     case (1):
       // -- left side      | right side -- //
-      rho_1      = 1.0;      rho_2      = 0.125;
-      pressure_1 = 1.0;      pressure_2 = 0.1;
-      vx_1       = 0.0;      vx_2       = 0.0;
+      rho_l      = 1.0;      rho_r      = 0.125;
+      pressure_l = 1.0;      pressure_r = 0.1;
+      vx_l       = 0.0;      vx_r       = 0.0;
       break;
 
     case (2):
-      rho_1      = 1.0;      rho_2      = 1.0;
-      pressure_1 = 0.4;      pressure_2 = 0.4;
-      vx_1       =-2.0;      vx_2       = 2.0;
+      rho_l      = 1.0;      rho_r      = 1.0;
+      pressure_l = 0.4;      pressure_r = 0.4;
+      vx_l       =-2.0;      vx_r       = 2.0;
       break;
 
     case (3):
-      rho_1      = 1.0;      rho_2      = 1.0;
-      pressure_1 = 1000.;    pressure_2 = 0.01;
-      vx_1       = 0.0;      vx_2       = 0.0;
+      rho_l      = 1.0;      rho_r      = 1.0;
+      pressure_l = 1000.;    pressure_r = 0.01;
+      vx_l       = 0.0;      vx_r       = 0.0;
       break;
 
     case (4):
-      rho_1      = 1.0;      rho_2      = 1.0;
-      pressure_1 = 0.01;     pressure_2 = 100.;
-      vx_1       = 0.0;      vx_2       = 0.0;
+      rho_l      = 1.0;      rho_r      = 1.0;
+      pressure_l = 0.01;     pressure_r = 100.;
+      vx_l       = 0.0;      vx_r       = 0.0;
       break;
 
     case (5):
-      rho_1      = 5.99924;  rho_2      = 5.99242;
-      pressure_1 = 460.894;  pressure_2 = 46.0950;
-      vx_1       = 19.5975;  vx_2       =-6.19633;
+      rho_l      = 5.99924;  rho_r      = 5.99242;
+      pressure_l = 460.894;  pressure_r = 46.0950;
+      vx_l       = 19.5975;  vx_r       =-6.19633;
       break;
 
     default:
@@ -156,6 +230,11 @@ void set_param(int rank, int size) {
       MPI_Finalize();
       exit(-1);
   }
+
+  distance_r = length/2./(nparticles/9.);
+  distance_l = length/2./(8.*(nparticles/9.));
+
+  std::cout<<"distance L = "<<distance_l<<" R = "<<distance_r<<std::endl;
 
   // output file
   sprintf(output_filename,"%s.h5part",fileprefix);
@@ -183,80 +262,88 @@ int main(int argc, char * argv[]){
   if(rank==0){
     cout << "Sod test #" << sodtest_num << " in 1D:" << endl
          << " - number of particles: " << nparticles << endl
-         << " - particles per core:  " << nparticlesproc << endl
          << " - output file: " << output_filename << endl;
   }
 
   // allocate arrays
 
   // Position
-  double* x = new double[nparticlesproc]();
-  double* y = new double[nparticlesproc]();
-  double* z = new double[nparticlesproc]();
+  double* x = new double[nparticles]();
+  double* y = new double[nparticles]();
+  double* z = new double[nparticles]();
   // Velocity
-  double* vx = new double[nparticlesproc]();
-  double* vy = new double[nparticlesproc]();
-  double* vz = new double[nparticlesproc]();
+  double* vx = new double[nparticles]();
+  double* vy = new double[nparticles]();
+  double* vz = new double[nparticles]();
   // Acceleration
-  double* ax = new double[nparticlesproc]();
-  double* ay = new double[nparticlesproc]();
-  double* az = new double[nparticlesproc]();
+  double* ax = new double[nparticles]();
+  double* ay = new double[nparticles]();
+  double* az = new double[nparticles]();
   // Smoothing length
-  double* h = new double[nparticlesproc]();
+  double* h = new double[nparticles]();
   // Density
-  double* rho = new double[nparticlesproc]();
+  double* rho = new double[nparticles]();
   // Internal Energy
-  double* u = new double[nparticlesproc]();
+  double* u = new double[nparticles]();
   // Pressure
-  double* P = new double[nparticlesproc]();
+  double* P = new double[nparticles]();
   // Mass
-  double* m = new double[nparticlesproc]();
+  double* m = new double[nparticles]();
   // Id
-  int64_t* id = new int64_t[nparticlesproc]();
+  int64_t* id = new int64_t[nparticles]();
   // Timestep
-  double* dt = new double[nparticlesproc]();
+  double* dt = new double[nparticles]();
 
   // Generate data
   // Find middle to switch m, u and rho
-  double middle = nparticles*ldistance/2.;
+  //double middle = nparticles*ldistance/2.;
   // Find my first particle position
-  double lposition = ldistance*nparticlesproc*rank;
+  double lposition = -length/2.;//ldistance*nparticles*rank;
   // Id of my first particle
-  int64_t posid = nparticlesproc*rank;
+  int64_t posid = 0;//nparticles*rank;
 
   // max. value for the speed of sound
-  double cs = sqrt(localgamma*max(pressure_1/rho_1,pressure_2/rho_2));
+  double cs = sqrt(localgamma*max(pressure_l/rho_l,pressure_r/rho_r));
 
   // The value for constant timestep
-  double timestep = 0.5*ldistance/cs;
+  double timestep = 0.07*ldistance/cs;
 
 
-  for(int64_t part=0; part<nparticlesproc; ++part){
+  for(int64_t part=0 ; part<nparticles ; ++part){
     id[part] = posid++;
     x[part] = lposition;
 
-    if(x[part] > middle){
-      P[part] = pressure_2;
-      rho[part] = rho_2;
-      vx[part] = vx_2;
+    double dist;
+
+    if(lposition <= 0.){
+      P[part] = pressure_l;
+      rho[part] = rho_l;
+      vx[part] = vx_l;
+      dist = distance_l;
     }else{
-      P[part] = pressure_1;
-      rho[part] = rho_1;
-      vx[part] = vx_1;
+      P[part] = pressure_r;
+      rho[part] = rho_r;
+      vx[part] = vx_r;
+      dist = distance_r;
     }
 
+    lposition += dist;
+
     // compute internal energy using gamma-law eos
-    u[part] = P[part]/(localgamma-1.)/rho[part];
+    u[part] = P[part]/((localgamma-1.)*rho[part]);
 
     // particle masses and smoothing length
-    m[part] = rho[part]*middle/(nparticles/2.);
-    h[part] = smoothing_length;
-
-    // P,Y,Z,VY,VZ,AX,AY,AZ stay 0
-    // Move to the next particle
-    lposition += ldistance;
+    // h = gamma(m/rho)
+    m[part] = 1.;
+    // Guess to start the search 
+    //h[part] = localgamma*(m[part]/rho[part]);
+    //m[part] = rho[part]*h[part]/localgamma;
 
   } // for part=0..nparticles
+
+  bisection_smoothing_length(x,h,m,rho);
+
+  std::cout<<"Position = ["<<-length/2.<<";"<<lposition<<"]"<<std::endl;
 
   // delete the output file if exists
   remove(output_filename);
@@ -280,9 +367,9 @@ int main(int argc, char * argv[]){
 
   Flecsi_Sim_IO::Variable _d1,_d2,_d3;
 
-  _d1.createVariable("x",Flecsi_Sim_IO::point,"double",nparticlesproc,x);
-  _d2.createVariable("y",Flecsi_Sim_IO::point,"double",nparticlesproc,y);
-  _d3.createVariable("z",Flecsi_Sim_IO::point,"double",nparticlesproc,z);
+  _d1.createVariable("x",Flecsi_Sim_IO::point,"double",nparticles,x);
+  _d2.createVariable("y",Flecsi_Sim_IO::point,"double",nparticles,y);
+  _d3.createVariable("z",Flecsi_Sim_IO::point,"double",nparticles,z);
 
   testDataSet.vars.push_back(_d1);
   testDataSet.vars.push_back(_d2);
@@ -290,9 +377,9 @@ int main(int argc, char * argv[]){
 
   testDataSet.writeVariables();
 
-  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticlesproc,vx);
-  //_d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
-  //_d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
+  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticles,vx);
+  //_d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticles,vy);
+  //_d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticles,vz);
 
   testDataSet.vars.push_back(_d1);
   //testDataSet.vars.push_back(_d2);
@@ -300,20 +387,9 @@ int main(int argc, char * argv[]){
 
   testDataSet.writeVariables();
 
-  //_d1.createVariable("ax",Flecsi_Sim_IO::point,"double",nparticlesproc,ax);
-  //_d2.createVariable("ay",Flecsi_Sim_IO::point,"double",nparticlesproc,ay);
-  //_d3.createVariable("az",Flecsi_Sim_IO::point,"double",nparticlesproc,az);
-
-  //testDataSet.vars.push_back(_d1);
-  //testDataSet.vars.push_back(_d2);
-  //testDataSet.vars.push_back(_d3);
-
-  //testDataSet.writeVariables();
-
-
-  _d1.createVariable("h",Flecsi_Sim_IO::point,"double",nparticlesproc,h);
-  _d2.createVariable("rho",Flecsi_Sim_IO::point,"double",nparticlesproc,rho);
-  _d3.createVariable("u",Flecsi_Sim_IO::point,"double",nparticlesproc,u);
+  _d1.createVariable("h",Flecsi_Sim_IO::point,"double",nparticles,h);
+  _d2.createVariable("rho",Flecsi_Sim_IO::point,"double",nparticles,rho);
+  _d3.createVariable("u",Flecsi_Sim_IO::point,"double",nparticles,u);
 
   testDataSet.vars.push_back(_d1);
   testDataSet.vars.push_back(_d2);
@@ -321,9 +397,9 @@ int main(int argc, char * argv[]){
 
   testDataSet.writeVariables();
 
-  _d1.createVariable("P",Flecsi_Sim_IO::point,"double",nparticlesproc,P);
-  _d2.createVariable("m",Flecsi_Sim_IO::point,"double",nparticlesproc,m);
-  _d3.createVariable("id",Flecsi_Sim_IO::point,"int64_t",nparticlesproc,id);
+  _d1.createVariable("P",Flecsi_Sim_IO::point,"double",nparticles,P);
+  _d2.createVariable("m",Flecsi_Sim_IO::point,"double",nparticles,m);
+  _d3.createVariable("id",Flecsi_Sim_IO::point,"int64_t",nparticles,id);
 
   testDataSet.vars.push_back(_d1);
   testDataSet.vars.push_back(_d2);

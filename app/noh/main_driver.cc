@@ -94,7 +94,7 @@ mpi_init_task(int startiteration){
    
     // Do the Noh physics
     if (rank == 0) std::cout << "compute_density_pressure_soundspeed" << std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed_sodtube);
     if (rank == 0) std::cout << ".done" << std::endl;
     
     // Refresh the neighbors within the smoothing length 
@@ -118,11 +118,6 @@ mpi_init_task(int startiteration){
       bs.apply_all(physics::leapfrog_integration);
       if (rank == 0) std::cout << ".done" << std::endl;
     }
-
-    if (rank == 0) std::cout<<"dudt integration"<<std::flush; 
-    bs.apply_all(physics::dudt_integration);
-    if (rank == 0) std::cout << ".done" << std::endl;
-   
 
     physics::totaltime += physics::dt;
     if(rank == 0){

@@ -48,10 +48,10 @@ namespace physics{
   double cs0 = 10.;
   double eta_sq = 0.01;
   double background_pressure = 0.;
-  bool do_verlet_cor = false; 
   double coeff_dt = 0.3;
   int verlet_cstep = 10.;
   int verlet_current = 0.;
+  bool do_verlet_cor = false; 
   double epsilon = 0.1;
   double maxtime = 10.;
   double outputtime = 0.02;

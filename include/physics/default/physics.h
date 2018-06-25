@@ -50,6 +50,11 @@ namespace physics{
   double totaltime = 0.0;
   double MAC = 0.;
   double eta = 0.01;
+  int64_t nparticles = 0;
+
+  int verlet_cstep = 10.;
+  int verlet_current = 0.;
+  bool do_verlet_cor = false; 
 
   // Default configuration for kernel
   int kernel_choice = 0;
@@ -66,16 +71,18 @@ namespace physics{
       std::vector<body_holder*>& nbsh)
   {
     body* source = srch->getBody();
-    double density = 0;
+    double density = 0.;
     mpi_assert(nbsh.size()>0);
+
+    // Reset the smoothing length if out the boundaries
     for(auto nbh : nbsh){
       body* nb = nbh->getBody();
       double dist = flecsi::distance(source->getPosition(),nb->getPosition());
       mpi_assert(dist>=0.0);
-      double kernelresult = (1./2.)*(
-          kernel(dist,source->getSmoothinglength())+
-          kernel(dist,nb->getSmoothinglength()));
-      density += kernelresult*nb->getMass();
+      density += nb->getMass()*
+        kernel(
+        dist,
+        1./2.*(source->getSmoothinglength()+nb->getSmoothinglength()));
     } // for
     mpi_assert(density>0);
     source->setDensity(density);
@@ -87,20 +94,46 @@ namespace physics{
   // P_i = u_i*rho_i^{\Gamma}
   //static
   void 
-  compute_pressure(
+  compute_pressure_sodtube(
+      body_holder* srch)
+  { 
+    body* source = srch->getBody();
+    double pressure = (gamma-1.0)*
+      source->getDensity()*source->getInternalenergy();
+    source->setPressure(pressure);
+  } // compute_pressure
+
+
+  void 
+  init_energy_velocity(
+    body_holder* srch)
+  {
+    body* source = srch->getBody();
+    source->setVelocityTmp(source->getVelocity());
+    source->setInternalenergyTmp(source->getInternalenergy());
+  }
+
+    // Computre pressure on a body 
+  // This function does not need the neighbors
+  // Formula is:
+  // P_i = u_i*rho_i^{\Gamma}
+  //static
+  void 
+  compute_pressure_sedov(
       body_holder* srch)
   { 
     body* source = srch->getBody();
     //double pressure = (gamma-1.0)*
     //  source->getDensity()*source->getInternalenergy();
-    //double A = (gamma-1)*source->getInternalenergy()/
-    //  (pow(source->getDensity(),gamma-1));
-    double A = 0.6366;
+    double A = (gamma-1)*source->getInternalenergy()/
+      (pow(source->getDensity(),gamma-1));
+    //double A = 0.6366;
     double pressure = A*
       pow(source->getDensity(),gamma);
     //assert(pressure>=0);
     source->setPressure(pressure);
   } // compute_pressure
+
 
   //For zero temperature white dwarf EOS
   void 
@@ -127,20 +160,44 @@ namespace physics{
       body_holder* srch)
   {
     body* source = srch->getBody();
-    //double soundspeed = pow(source->getPressure()/source->getDensity(),1./2.);
-    double soundspeed = pow(gamma*
-        source->getPressure()/source->getDensity(),1./2.);
+    double soundspeed = sqrt(gamma*
+        source->getPressure()/source->getDensity());
     source->setSoundspeed(soundspeed);
   } // computeSoundspeed
 
   void 
-  compute_density_pressure_soundspeed(
+  compute_smoothing_length(
+    body_holder* srch)
+  {
+    body* source = srch->getBody(); 
+    double smoothing_length = gamma*source->getMass()/source->getDensity();
+    source->setSmoothinglength(smoothing_length);
+  }
+
+  void 
+  compute_density_pressure_soundspeed_sedov(
     body_holder* srch, 
     std::vector<body_holder*>& nbsh)
   {
     compute_density(srch,nbsh);
-    compute_pressure(srch);
+    compute_pressure_sedov(srch);
     compute_soundspeed(srch); 
+  }
+
+  void 
+  compute_density_pressure_soundspeed_sodtube(
+    body_holder* srch, 
+    std::vector<body_holder*>& nbsh)
+  {
+    if(do_boundaries && stop_boundaries){
+      if(srch->getPosition() < min_boundary || 
+          srch->getPosition() > max_boundary){
+        return;
+      }
+    }
+    compute_density(srch,nbsh);
+    compute_pressure_sodtube(srch);
+    compute_soundspeed(srch);
   }
 
   // mu used in artificial viscosity 
@@ -166,8 +223,8 @@ namespace physics{
       return result;
     // Should add norm to space_vector
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-    //result = h_ij * dotproduct / (dist*dist + epsilon*h_ij*h_ij);
-    result = dotproduct / (h_ij*((dist*dist)/(h_ij*h_ij))+eta*eta);
+    result = h_ij * dotproduct / (dist*dist + 0.01*h_ij*h_ij);
+    //result = h_ij * dotproduct / (dist*dist+eta*eta);
     //  res = dotRes / (h_ij * (((dist*dist)/(h_ij*h_ij))+visc_eta*visc_eta));  
 
     mpi_assert(result < 0.0);
@@ -181,22 +238,29 @@ namespace physics{
   // with Pi_{ij} the artificial viscosity 
   //static
   void 
-  compute_hydro_acceleration(
+  compute_hydroacc_internalenergy(
     body_holder* srch, 
     std::vector<body_holder*>& ngbsh)
   { 
     body* source = srch->getBody();
-    // reset acceleration 
-    //source->setAcceleration(point_t{});
 
-    // Add in the acceleration
-    point_t acceleration = source->getAcceleration();
+    // For Verlet 
+    source->setVelocityNM1(source->getVelocityTmp());
+    source->setVelocityTmp(source->getVelocity());
+    source->setInternalenergyNM1(source->getInternalenergyTmp());
+    source->setInternalenergyTmp(source->getInternalenergy());
 
     point_t hydro = {};
+    point_t velCor; 
+    double dudt_pressure = 0.;
+    double dudt_viscosity = 0.;
+    double dudt = 0.;
+
     for(auto nbh : ngbsh){ 
       body* nb = nbh->getBody();
 
-      if(nb->getPosition() == source->getPosition()){
+      // Ignore the particle itself
+      if(nb->getId() == source->getId()){
         continue;
       }
 
@@ -209,138 +273,49 @@ namespace physics{
         /density_ij;
       mpi_assert(viscosity>=0.0);
 
-      // Hydro force
-      point_t vecPosition = source->getPosition()-nb->getPosition();
-      double pressureDensity = source->getPressure()/(source->getDensity()*
-          source->getDensity())
-          + nb->getPressure()/(nb->getDensity()*nb->getDensity());
-      point_t sourcekernelgradient = gradKernel(
-          vecPosition,source->getSmoothinglength());
-      point_t nbkernelgradient = gradKernel(
-          vecPosition,nb->getSmoothinglength());
-      point_t resultkernelgradient = (1./2.)*
-        (sourcekernelgradient+nbkernelgradient);
-
-      hydro += nb->getMass()*(pressureDensity+viscosity)
-        *resultkernelgradient;
-
-    }
-    hydro = -1.0*hydro;
-    acceleration += hydro;
-    source->setAcceleration(acceleration);
-    //std::cout<<*source<<std::endl;
-
-  } // compute_hydro_acceleration
-
-  // compute u 
-  // Formula is:
-  // u_i = P_i/rho_i^2 \sum_j m_j*v_ij*gradKernel_ij
-  //static
-  void
-  compute_internalenergy(
-    body_holder* srch,
-    std::vector<body_holder*>& ngbsh)
-  {
-    body* source = srch->getBody();
-    double internalenergy = 0;
-
-    for(auto nbh: ngbsh){
-      body* nb = nbh->getBody();
-
-      if(nb->getPosition() == source->getPosition()){
-        continue;
-      }
-    
-      // Compute the gradKernel ij      
-      point_t vecPosition = source->getPosition()-nb->getPosition();
-      point_t sourcekernelgradient = gradKernel(
-          vecPosition,source->getSmoothinglength());
-      point_t nbkernelgradient = gradKernel(
-          vecPosition,nb->getSmoothinglength());
-      space_vector_t resultkernelgradient = flecsi::point_to_vector((1./2.)*
-          (sourcekernelgradient+nbkernelgradient));
-
-      // Velocity vector 
+      double dist = flecsi::distance(source->getPosition(),nb->getPosition());
+      double wab =kernel(dist,
+          1./2.*(source->getSmoothinglength()+nb->getSmoothinglength()));
+        
+      // Gradient
       space_vector_t vecVelocity = flecsi::point_to_vector(
           source->getVelocity()-nb->getVelocity());
+      point_t vecPosition = source->getPosition()-nb->getPosition();
+      double pressureDensity = 
+          source->getPressure()/(source->getDensity()*source->getDensity())
+          + nb->getPressure()/(nb->getDensity()*nb->getDensity());
+      
+      //point_t sourcekernelgradient = gradKernel(
+      //    vecPosition,source->getSmoothinglength());
+      //point_t nbkernelgradient = gradKernel(
+      //    vecPosition,nb->getSmoothinglength());
+      //point_t resultkernelgradient = (1./2.)*
+      //  (sourcekernelgradient+nbkernelgradient);
+      point_t resultkernelgradient = gradKernel(
+          vecPosition,
+          1./2.*(source->getSmoothinglength()+nb->getSmoothinglength()));
+      
+      hydro = nb->getMass()*(pressureDensity+viscosity)
+        *resultkernelgradient;
 
-      // Add artificial viscosity
-      // \TODO compute it one for acceleration and internalenergy 
-      double density_ij = (1./2.)*(source->getDensity()+nb->getDensity());
-      double soundspeed_ij = (1./2.)*
-        (source->getSoundspeed()+nb->getSoundspeed());
-      double mu_ij = mu(source,nb,epsilon);
-      mpi_assert(mu_ij <= 0.0); 
-      double viscosity = (-alpha*mu_ij*soundspeed_ij+beta*mu_ij*mu_ij)
-        /density_ij;
-      mpi_assert(viscosity>=0.0);
+      dudt_pressure += nb->getMass()*
+        flecsi::dot(vecVelocity,flecsi::point_to_vector(resultkernelgradient));
+      dudt_viscosity += nb->getMass()*
+        viscosity*
+        flecsi::dot(vecVelocity,flecsi::point_to_vector(resultkernelgradient));
 
-      internalenergy += nb->getMass()*(
-          //nb->getPressure()/(nb->getDensity()*nb->getDensity())+
-         source->getPressure()/(source->getDensity()*source->getDensity())
-          + 1./2.*viscosity)*flecsi::dot(vecVelocity,resultkernelgradient);
-
-      //if(internalenergy < 0){
-      //  std::cout<<internalenergy<<std::endl;
-      //  std::cout<<flecsi::dot(vecVelocity,resultkernelgradient)<<std::endl;
-      //  std::cout<<*source<<std::endl<<*nb<<std::endl;
-      //  exit(0);
-      //}
+        velCor = velCor - wab * (source->getVelocity()-nb->getVelocity()) * nb->getMass() / density_ij; 
     }
+
+    dudt = source->getPressure()/
+      (source->getDensity()*source->getDensity())*dudt_pressure+
+      1./2.*dudt_viscosity;
     
-    source->setDudt(internalenergy);
-  } // compute_internalenergy
+    source->setDudt(dudt);
+    source->setAcceleration(-1.*hydro);
+    source->setVelocityCor(source->getVelocity()+epsilon*velCor);
 
-#if 0
-  // Compute acceleration for the FGrav and FHydro 
-  // If we consider the relaxation step, we need FRoche or FRot 
-  //static 
-  void 
-  compute_acceleration(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    point_t acceleration = {0.,0.,0.};
-    acceleration += source->getHydroForce() / source->getMass();
-    acceleration += source->getGravForce();
-    //acceleration /= source->getMass();
-  
-    // Use it in the new velocity 
-    point_t velocity = {0.,0.,0.};
-    velocity = source->getVelocityhalf() + dt/2.0*acceleration;
-
-    source->setAcceleration(acceleration);
-    source->setVelocity(velocity);
-  }
-#endif
-
-  void 
-  compute_gravitation(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    point_t acceleration = source->getAcceleration();
-    point_t force; 
-    if(gdimension == 1){
-      force = point_t{g_strength};
-    }
-    if(gdimension == 2){
-      force = point_t{0.0,g_strength};
-    }
-    if(gdimension == 3){
-      force = point_t{0.0,0.0,g_strength};
-    }
-    acceleration += force;
-    source->setAcceleration(acceleration);
-  }
-
-  void dudt_integration(
-      body_holder* srch)
-  {
-    body* source = srch->getBody(); 
-    source->setInternalenergy(source->getInternalenergy()+
-        dt*source->getDudt());
-  }
+  } // compute_hydro_acceleration
 
   // Apply boundaries 
   bool
@@ -357,11 +332,9 @@ namespace physics{
     if(stop_boundaries){
       if(position < min_boundary || 
           position > max_boundary){
-
         velocity = point_t{};
         velocityHalf = point_t{};
         considered = true;
-      
       }
     }else if(reflect_boundaries){
       for(size_t dim=0;dim < gdimension ; ++dim){
@@ -371,7 +344,6 @@ namespace physics{
           if(position[dim] < min_boundary[dim]){
             barrier = min_boundary[dim];
           }
-
           // Here just invert the velocity vector and velocityHalf 
           double tbounce = (position[dim]-barrier)/velocity[dim];
           position -= velocity*(1-damp)*tbounce;
@@ -386,41 +358,42 @@ namespace physics{
         }
       }
     }
-    source->setPosition(position);
-    source->setVelocity(velocity);
-    source->setVelocityhalf(velocityHalf);
+    if(considered){
+      source->setPosition(position);
+      source->setVelocity(velocity);
+      source->setVelocityhalf(velocityHalf);
+    }
     return considered;
   }
 
-
-  void 
+    void 
   leapfrog_integration_first_step(
       body_holder* srch)
   {
     body* source = srch->getBody();
-
-    // If wall, reset velocity and dont move 
-    if(source->is_wall()){
-      source->setVelocity(point_t{});
-      source->setVelocityhalf(point_t{}); 
-      return; 
-    }
 
     point_t velocityHalf = source->getVelocity() + 
         dt/2.*source->getAcceleration();
     point_t position = source->getPosition()+velocityHalf*dt;
     point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
 
+    compute_smoothing_length(srch); 
+
+    // Internal energy 
+    source->setInternalenergy(source->getInternalenergy()+
+        dt*source->getDudt());
+
+
     if(do_boundaries){
       if(physics::compute_boundaries(srch)){
         return;
       }
     }
-
+ 
     source->setVelocityhalf(velocityHalf);
     source->setVelocity(velocity);
     source->setPosition(position);
-
+    
     mpi_assert(!std::isnan(position[0])); 
   }
 
@@ -429,25 +402,25 @@ namespace physics{
       body_holder* srch)
   {
     body* source = srch->getBody();
-    
-    // If wall, reset velocity and dont move 
-    if(source->is_wall()){
-      source->setVelocity(point_t{});
-      source->setVelocityhalf(point_t{}); 
-      return; 
-    }
-    
+
     point_t velocityHalf = source->getVelocityhalf() + 
-        dt*source->getAcceleration();
+        dt/2.*source->getAcceleration();
     point_t position = source->getPosition()+velocityHalf*dt;
     point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
+
+    compute_smoothing_length(srch); 
+
+    // Internal energy 
+    source->setInternalenergy(source->getInternalenergy()+
+        dt*source->getDudt());
+
 
     if(do_boundaries){
       if(physics::compute_boundaries(srch)){
         return;
       }
     }
-
+    
     source->setVelocityhalf(velocityHalf);
     source->setVelocity(velocity);
     source->setPosition(position);
@@ -475,54 +448,67 @@ namespace physics{
     double max_mu_ij = -9999999;
     for(auto nbh: ngbhs){
       body* nb = nbh->getBody(); 
-      double local_mu = fabs(mu(source,nb,gamma));
+      double local_mu = mu(source,nb,gamma);
       max_mu_ij = std::max(max_mu_ij,local_mu);
     }
     double dt2 = source->getSmoothinglength()/
         (source->getSoundspeed()+
-         1.2*alpha*source->getSoundspeed()+
-         1.2*beta*max_mu_ij);
-    dt2 *= 0.1;
+         .6*alpha*source->getSoundspeed()+
+         .6*beta*max_mu_ij);
+    
+    double min = std::min(dt1,dt2)*0.25;
 
-    //std::cout<<"dt2 = "<<dt1<<std::endl;
-
-    double min = std::min(dt1,dt2);
-  #pragma omp critical 
+    #pragma omp critical 
     physics::dt = std::min(dt,min);
     //return std::min(physics::dt,dt1); 
   }
 
-  // Calculate simple linear momentum for checking momentum conservation
   void 
-  compute_lin_momentum(
-      std::vector<body_holder*>& bodies, 
-      point_t* total) 
+  verlet_integration(
+      body_holder* srch)
   {
-    *total = {0};
-    for(auto nbh: bodies) {
-      *total += nbh->getBody()->getLinMomentum(); 
-    }  
-  }
 
-  void
-  nsquare_gravitation(
-      std::vector<body_holder*>& bodies){
-    int64_t nelem = bodies.size();
-    #pragma omp parallel for 
-    for(int64_t i = 0; i<nelem; ++i){
-      body * source = bodies[i]->getBody();
-      point_t grav = point_t{};
-      for(auto& n: bodies){
-        body* nb = n->getBody();
-        double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-        point_t pos = source->getPosition() - nb->getPosition();
-        if(dist > 0.){
-          grav += -nb->getMass() / (dist*dist*dist) * pos; 
-        }
-      }
-      source->setAcceleration(source->getAcceleration() + grav);
+    verlet_current++;
+    do_verlet_cor = false;
+    if(verlet_current % verlet_cstep == 0){
+      do_verlet_cor = true;
+      verlet_current = 0;
     }
-  }
+
+    body* source = srch->getBody();
+
+    point_t position = source->getPosition();
+    point_t velocity = {};
+    double internalenergy = 0.;
+
+    if(!do_verlet_cor){
+      position += source->getVelocityCor()*dt+
+        source->getAcceleration()*dt*dt*0.5;
+      velocity = source->getVelocityNM1()+source->getAcceleration()*2*dt;
+      internalenergy = source->getInternalenergyNM1() + 
+        source->getDudt()*2.*dt;
+    }else{
+      position += source->getVelocityCor()*dt+
+        source->getAcceleration()*dt*dt*0.5;
+      velocity = source->getVelocity()+source->getAcceleration()*dt;
+      internalenergy = source->getInternalenergy() + source->getDudt() * dt;
+    }
+    
+    if(do_boundaries){
+      if(physics::compute_boundaries(srch)){
+        return;
+      }
+    }
+
+    source->setVelocity(velocity);
+    source->setPosition(position);
+    source->setInternalenergy(internalenergy);
+
+    compute_smoothing_length(srch); 
+
+
+  } // verlet_integration_EOS
+
 
 }; // physics
 

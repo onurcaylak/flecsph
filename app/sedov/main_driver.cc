@@ -63,7 +63,7 @@ mpi_init_task(int startiteration){
   int iter = startiteration; 
 
   // Init if default values are not ok
-  physics::dt = 0.001;
+  physics::dt = 0.0001;
   physics::alpha = 1; 
   physics::beta = 2; 
   //physics::stop_boundaries = true;
@@ -111,12 +111,20 @@ mpi_init_task(int startiteration){
     // Do the Sod Tube physics
     if(rank==0)
       std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed_sedov);
     if(rank==0)
       std::cout<<".done"<<std::endl;
     
     // Refresh the neighbors within the smoothing length 
     bs.update_neighbors(); 
+
+    // Reset Acceleration
+    bs.apply_all(
+      [] (body_holder* srch)
+      {
+        body* source = srch->getBody();
+        source->setAcceleration(point_t{});
+      });
 
     if(rank==0)
       std::cout<<"Hydro acceleration"<<std::flush; 
@@ -143,12 +151,6 @@ mpi_init_task(int startiteration){
       if(rank==0)
         std::cout<<".done"<<std::endl;
     }
-
-    if(rank==0)
-      std::cout<<"dudt integration"<<std::flush; 
-    bs.apply_all(physics::dudt_integration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
 
 #if 1
 #ifdef OUTPUT

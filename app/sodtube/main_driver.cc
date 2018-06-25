@@ -56,19 +56,11 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 500;
+  int totaliters = 50;
   int iteroutput = 1;
   double totaltime = 0.0;
   double maxtime = 10.0;
   int iter = startiteration; 
-
-  // Init if default values are not ok
-  physics::dt = 0.0025;
-  physics::alpha = 1; 
-  physics::beta = 2; 
-  physics::do_boundaries = true;
-  physics::stop_boundaries = true;
-  physics::gamma = 5./3.;
 
   const char * inputFile = "hdf5_sodtube.h5part";
   const char * outputFile = "output_sodtube.h5part"; 
@@ -77,12 +69,20 @@ mpi_init_task(int startiteration){
 
   body_system<double,gdimension> bs;
   bs.read_bodies("hdf5_sodtube.h5part",startiteration);
-  //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
+  // Init if default values are not ok
+  physics::dt = 0.025;// bs.get_attribute<double>("hdf5_sodtube.h5part","timestep");
+  physics::alpha = 1; 
+  physics::beta = 2; 
+  physics::do_boundaries = true;
+  physics::stop_boundaries = true;
+  physics::gamma = 1.4;//5./3.;
+  physics::nparticles = bs.getNParticles();
 
-  //eos_analytics eos(1.4);
-
+  if(rank==0){
+    std::cout<<"timestep="<<physics::dt<<std::endl;
+  }
   double h = bs.getSmoothinglength();
-  physics::epsilon = 0.01*h*h;
+  physics::epsilon = 0.1*h;
 
   // Set the boundaries to be at 10% of the total range
   auto range_boundaries = bs.getRange(); 
@@ -96,6 +96,17 @@ mpi_init_task(int startiteration){
   }
 
   bs.update_iteration();
+
+  if(rank==0)
+    std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+    bs.apply_square(physics::compute_density_pressure_soundspeed_sodtube);
+  if(rank==0)
+    std::cout<<".done"<<std::endl;
+  if(rank==0)
+    std::cout<<"Init Internal energy and velocity for verlet"<<std::flush; 
+    bs.apply_all(physics::init_energy_velocity);
+  if(rank==0)
+    std::cout<<".done"<<std::endl;
 
 #ifdef OUTPUT
   bs.write_bodies("output_sodtube",iter);
@@ -121,48 +132,41 @@ mpi_init_task(int startiteration){
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
 
-    if(rank==0)
-      std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
-    bs.update_neighbors();
+    // Reset Acceleration
+    bs.apply_all(
+      [] (body_holder* srch)
+      {
+        body* source = srch->getBody();
+        source->setAcceleration(point_t{});
+      });
    
     if(rank==0)
-      std::cout<<"Hydro acceleration"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+      std::cout<<"Hydro + Internalenergy"<<std::flush; 
+    bs.apply_square(physics::compute_hydroacc_internalenergy);
     if(rank==0)
       std::cout<<".done"<<std::endl;
  
-    if(rank==0)
-      std::cout<<"Internalenergy"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_internalenergy);
-    if(rank==0)
-      std::cout<<".done"<<std::endl; 
-   
-    if(iter==1){ 
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
-      bs.apply_all(physics::leapfrog_integration_first_step);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
-    }else{
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
-      bs.apply_all(physics::leapfrog_integration);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
-    }
+    // new dt
+    //if(rank==0)
+    //  std::cout<<"Timestep"<<std::flush; 
+    //bs.apply_square(physics::compute_dt);
+    //if(rank==0){
+    //  std::cout<<".done"<<std::endl; 
+    //  std::cout<<"dt="<<physics::dt<<std::endl;
+    //}
 
-    if(rank==0){
-      std::cout<<"dudt integration"<<std::flush; 
-    }
-    bs.apply_all(physics::dudt_integration);
-    if(rank==0){
+    if(rank==0)
+      std::cout<<"verlet"<<std::flush; 
+      bs.apply_all(physics::verlet_integration);
+    if(rank==0)
       std::cout<<".done"<<std::endl;
-    }
+    
 
+    if(rank==0)
+      std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+    bs.apply_square(physics::compute_density_pressure_soundspeed_sodtube);
+    if(rank==0)
+      std::cout<<".done"<<std::endl;
 
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
@@ -170,6 +174,11 @@ mpi_init_task(int startiteration){
     }
 #endif
     ++iter;
+
+    physics::totaltime+=physics::dt;
+    if(rank==0){
+      std::cout<<"totaltime="<<physics::totaltime<< std::endl;
+    }
     
   }while(iter<totaliters);
 }

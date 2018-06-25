@@ -81,11 +81,16 @@ public:
   //double getEntropy() const{return entropy_;}
   double getDensity() const{return density_;}
   point_t getVelocity() const{return velocity_;}
+  point_t getVelocityTmp() const{return velocityTmp_;}
+  point_t getVelocityNM1() const{ return velocityNM1_;}
+  point_t getVelocityCor() const{return velocityCor_;}
   //point_t getHydroForce() const{return hydroforce_;}
   //point_t getGravForce() const{return gravforce_;}
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
   double getInternalenergy() const{return internalenergy_;}
+  double getInternalenergyTmp() const{return internalenergyTmp_;} 
+  double getInternalenergyNM1() const{return internalenergyNM1_;} 
   point_t getLinMomentum() const { 
     point_t res = {};
     for(int i = 0 ; i < dimension; ++i){
@@ -114,6 +119,10 @@ public:
   //void setLinMomentum(point_t lin_momentum){lin_momentum_ = lin_momentum;}
   void setInternalenergy(double internalenergy)
     {internalenergy_=internalenergy;};
+  void setInternalenergyTmp(double internalenergyTmp)
+    {internalenergyTmp_=internalenergyTmp;};
+  void setInternalenergyNM1(double internalenergyNM1)
+    {internalenergyNM1_=internalenergyNM1;};
   void setSmoothinglength(double smoothinglength)
     {smoothinglength_=smoothinglength;};
  // void setDudt(double dudt){dudt_ = dudt;};
@@ -121,6 +130,9 @@ public:
   void setId(int64_t id){id_ = id;};
   void setDudt(double dudt){dudt_ = dudt;};
   void setType(int type){type_ = type;}; 
+  void setVelocityNM1(point_t velocityNM1){velocityNM1_ = velocityNM1;};
+  void setVelocityTmp(point_t velocityTmp){velocityTmp_ = velocityTmp;};
+  void setVelocityCor(point_t velocityCor){velocityCor_ = velocityCor;};
 
   friend std::ostream& operator<<(std::ostream& os, const body& b){
     // TODO change regarding to dimension 
@@ -143,6 +155,9 @@ private:
   point_t position_;
   point_t velocity_;
   point_t velocityhalf_;
+  point_t velocityNM1_; 
+  point_t velocityTmp_;
+  point_t velocityCor_;
   point_t acceleration_;
   double density_;
   double pressure_; 
@@ -151,6 +166,8 @@ private:
   double smoothinglength_; 
   double soundspeed_;
   double internalenergy_;
+  double internalenergyNM1_;
+  double internalenergyTmp_;
   //point_t lin_momentum_; //TODO : Need to check
   //double dudt_;
   //point_t gravforce_;

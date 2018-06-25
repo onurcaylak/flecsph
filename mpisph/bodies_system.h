@@ -194,9 +194,9 @@ public:
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = 0;
     for(auto bi: localbodies_){
-      if(smoothinglength_ < bi.second.getSmoothinglength()){
-        smoothinglength_ = bi.second.getSmoothinglength();
-      }
+      smoothinglength_ = std::max(
+        smoothinglength_,
+        bi.second.getSmoothinglength());
     }
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
@@ -244,6 +244,12 @@ public:
     #endif
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
     return range_;
+  }
+
+  int64_t 
+  getNParticles()
+  {
+    return totalnbodies_;
   }
 
   /**
@@ -434,7 +440,7 @@ public:
     int64_t ncritical = 32; 
     tree_->apply_sub_cells(
         tree_->root(),
-        bodies_[0]->getBody()->getSmoothinglength()*2.,
+        smoothinglength_*2.,
         0.,
         ncritical,
         ef,
@@ -483,6 +489,21 @@ public:
     ARGS&&... args)
   {
     ef(bodies_,std::forward<ARGS>(args)...);
+  }
+
+  template<
+    typename EF,
+    typename... ARGS
+  >
+  void apply_square(
+    EF&& ef, 
+    ARGS&&... args)
+  {
+    int64_t nelem = bodies_.size();
+    #pragma omp parallel for 
+    for(int64_t i = 0 ; i < nelem; ++i){
+      ef(bodies_[i],bodies_,std::forward<ARGS>(args)...);
+    }
   }
 
   /**
