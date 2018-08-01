@@ -107,11 +107,11 @@ generate_lattice(
    if(gdimension > 1) y_topproc = bbox_min[1];
    if(gdimension > 2) z_topproc = bbox_min[2];
 
-   int64_t Nx = int((bbox_max[0]-bbox_max[0])/sph_separation);
+   int64_t Nx = int((bbox_max[0]-bbox_min[0])/sph_separation);
    int64_t Ny = 1;
    int64_t Nz = 1;
-   if(gdimension>1) Ny = int((bbox_max[1]-bbox_max[1])/sph_separation);
-   if(gdimension>2) Nz = int((bbox_max[2]-bbox_max[2])/sph_separation);
+   if(gdimension>1) Ny = int((bbox_max[1]-bbox_min[1])/sph_separation);
+   if(gdimension>2) Nz = int((bbox_max[2]-bbox_min[2])/sph_separation);
 
    // True number of particles to be determined and returned
    int64_t tparticles = 0;

@@ -117,7 +117,6 @@ int main(int argc, char * argv[]){
   bool count = true;
 
   int64_t tparticles = generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,count);
-
   count = false;
 
   // Initialize the arrays to be filled later
@@ -171,6 +170,8 @@ int main(int argc, char * argv[]){
        particles_blast++;
        mass_blast += m[part];
     }
+  }
+  for(int64_t part=0; part<tparticles; ++part){
     P[part] = pressure_initial;
     rho[part] = rho_initial;
     u[part] = uint_initial;
