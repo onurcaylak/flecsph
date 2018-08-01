@@ -84,10 +84,10 @@ generate_lattice(
    double radius = 0.0;
    if(domain_type==1 || domain_type==0) {
       radius = bbox_max[0] - bbox_min[0];
-      for(int j=1;j<gdimension;j++) 
+      for(int j=1;j<gdimension;j++)
         if (radius > bbox_max[j] - bbox_min[j])
           radius = bbox_max[j] - bbox_min[j];
-   } 
+   }
    radius = 0.5*radius;
 
    ////double radius = 0;
@@ -108,10 +108,17 @@ generate_lattice(
    if(gdimension > 2) z_topproc = bbox_min[2];
 
    int64_t Nx = int((bbox_max[0]-bbox_min[0])/sph_separation);
+   Nx = int(Nx*1.27+0.5)
    int64_t Ny = 1;
    int64_t Nz = 1;
-   if(gdimension>1) Ny = int((bbox_max[1]-bbox_min[1])/sph_separation);
-   if(gdimension>2) Nz = int((bbox_max[2]-bbox_min[2])/sph_separation);
+   if(gdimension>1){
+     Ny = int((bbox_max[1]-bbox_min[1])/sph_separation);
+     Ny = int(Ny*1.27+0.5)
+   }
+   if(gdimension>2){
+     Nz = int((bbox_max[2]-bbox_min[2])/sph_separation);
+     Nz = int(Nz*1.27+0.5)
+   }
 
    // True number of particles to be determined and returned
    int64_t tparticles = 0;
@@ -219,4 +226,3 @@ generate_lattice(
 
    return tparticles;
  }
-
