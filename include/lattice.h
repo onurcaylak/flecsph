@@ -107,17 +107,33 @@ generate_lattice(
    if(gdimension > 1) y_topproc = bbox_min[1];
    if(gdimension > 2) z_topproc = bbox_min[2];
 
-   int64_t Nx = int((bbox_max[0]-bbox_min[0])/sph_separation);
-   Nx = int(Nx*1.27+0.5)
+   int64_t Nx = 1;//int((bbox_max[0]-bbox_min[0])/sph_separation);
    int64_t Ny = 1;
    int64_t Nz = 1;
-   if(gdimension>1){
-     Ny = int((bbox_max[1]-bbox_min[1])/sph_separation);
-     Ny = int(Ny*1.27+0.5)
-   }
-   if(gdimension>2){
-     Nz = int((bbox_max[2]-bbox_min[2])/sph_separation);
-     Nz = int(Nz*1.27+0.5)
+   if(lattice_type==0){
+     Nx = int((bbox_max[0]-bbox_min[0])/sph_separation+0.5);
+     if(gdimension>1){
+       Ny = int((bbox_max[1]-bbox_min[1])/sph_separation+0.5);
+     }
+     if(gdimension>2){
+       Nz = int((bbox_max[2]-bbox_min[2])/sph_separation+0.5);
+     }
+   } else if(lattice_type==1){
+     Nx = int((bbox_max[0]-bbox_min[0]+sph_separation/2.)/sph_separation+0.5);
+     if(gdimension>1){
+       Ny = int(2.*(bbox_max[1]-bbox_min[1]+sqrt(3)*sph_separation/6.)/sph_separation/sqrt(3.)+0.5);
+     }
+     if(gdimension>2){
+       Nz = int(sqrt(3./2.)*(bbox_max[2]-bbox_min[2])/sph_separation+0.5);
+     }
+   } else if(lattice_type==2){
+     Nx = int((bbox_max[0]-bbox_min[0]+sph_separation/2.)/sph_separation+0.5);
+     if(gdimension>1){
+       Ny = int(2.*(bbox_max[1]-bbox_min[1]+sqrt(3)*sph_separation/6.)/sph_separation/sqrt(3.)+0.5);
+     }
+     if(gdimension>2){
+       Nz = int(sqrt(3./2.)*(bbox_max[2]-bbox_min[2])/sph_separation+0.5);
+     }
    }
 
    // True number of particles to be determined and returned
