@@ -44,6 +44,9 @@
  #include "mpi.h"
  #include "user.h"
  #include "params.h"
+ #include <vector>
+ #include "tree.h"
+ #include <math.h>
 
 bool in_domain(
     const double x,
