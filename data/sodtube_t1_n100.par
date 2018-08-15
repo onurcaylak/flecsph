@@ -2,10 +2,13 @@
 # Sodtube test #1 for 1000 particles
 #
 # initial data
-  nparticles= 1000    # global number of particles                                                                    
+  nparticles= 1000        # global number of particles, assuming 1D
+  sqrt_nparticles = 100   # sqrt of the total number of particles, assuming 2D square lattice
+  cbrt_nparticles = 10    # cbrt of the total number of particles, assuming 3D square lattice
   poly_gamma = 1.4    # polytropic index
-  sodtest_num  = 1    # which test to generate                                                                    
+  sodtest_num  = 1    # which test to generate
   initial_data_prefix = "sodtube_t1_n100"
+  equal_mass = true # determines whether equal mass particles are used or equal separation
 
 # evolution
   sph_kernel = "Wendland quintic"
@@ -15,4 +18,3 @@
   out_scalar_every = 10
   out_h5data_every = 10
   output_h5data_prefix = "sodtube_evolution"
-

@@ -43,8 +43,9 @@ I.  Theoretical  Discussion,” Royal Society of London Proceedings Series A
 //
 void print_usage() {
   clog_one(warn)
-      << "Initial data generator for the 2D Sedov blast wave" << std::endl
-      << "Usage: ./sedov_generator <parameter-file.par>"      << std::endl;
+      << "Initial data generator for the " << gdimension << "D Sedov blast wave"
+      << std::endl << "Usage: ./sedov_generator <parameter-file.par>"
+      << std::endl;
 }
 
 //
@@ -116,7 +117,7 @@ int main(int argc, char * argv[]){
 
   bool count = true;
 
-  int64_t tparticles = generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,count);
+  int64_t tparticles = generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,sph_separation,0,count);
   count = false;
 
   // Initialize the arrays to be filled later
@@ -147,18 +148,22 @@ int main(int argc, char * argv[]){
   // Timestep
   double* dt = new double[tparticles]();
 
-  tparticles = generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,count, x, y, z);
+  tparticles = generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,sph_separation,0,count, x, y, z);
 
   // particle id number
-  int64_t posid =0; 
+  int64_t posid = 0;
 
   // Number of particles in the blast zone
   int64_t particles_blast = 0;
 
   // Total mass of particles in the blast zone
   double mass_blast = 0;
-
-  double mass = rho_initial * M_PI*pow(radius,2.)/tparticles;
+  double mass;
+  if(gdimension==2){
+    mass = rho_initial * M_PI*pow(radius,2.)/tparticles;
+  } else{
+    mass = rho_initial * 4./3.*M_PI*pow(radius,3.)/tparticles;
+  }
   // Assign density, pressure and specific internal energy to particles,
   // including the particles in the blast zone
   for(int64_t part=0; part<tparticles; ++part){
@@ -281,4 +286,3 @@ int main(int argc, char * argv[]){
   MPI_Finalize();
   return 0;
 }
-

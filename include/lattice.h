@@ -76,6 +76,8 @@ generate_lattice(
     const int domain_type,
     const point_t& bbox_min,
     const point_t& bbox_max,
+    const double sph_sep,
+    int64_t posid,
     bool count_only,
     double x[] = NULL,
     double y[] = NULL,
@@ -110,39 +112,39 @@ generate_lattice(
    if(gdimension > 1) y_topproc = bbox_min[1];
    if(gdimension > 2) z_topproc = bbox_min[2];
 
-   int64_t Nx = 1;//int((bbox_max[0]-bbox_min[0])/sph_separation);
+   int64_t Nx = 1;//int((bbox_max[0]-bbox_min[0])/sph_sep);
    int64_t Ny = 1;
    int64_t Nz = 1;
    if(lattice_type==0){
-     Nx = int((bbox_max[0]-bbox_min[0])/sph_separation+0.5);
+     Nx = int((bbox_max[0]-bbox_min[0])/sph_sep+0.5);
      if(gdimension>1){
-       Ny = int((bbox_max[1]-bbox_min[1])/sph_separation+0.5);
+       Ny = int((bbox_max[1]-bbox_min[1])/sph_sep+0.5);
      }
      if(gdimension>2){
-       Nz = int((bbox_max[2]-bbox_min[2])/sph_separation+0.5);
+       Nz = int((bbox_max[2]-bbox_min[2])/sph_sep+0.5);
      }
    } else if(lattice_type==1){
-     Nx = int((bbox_max[0]-bbox_min[0]+sph_separation/2.)/sph_separation+0.5);
+     Nx = int((bbox_max[0]-bbox_min[0]+sph_sep/2.)/sph_sep+0.5);
      if(gdimension>1){
-       Ny = int(2.*(bbox_max[1]-bbox_min[1]+sqrt(3)*sph_separation/6.)/sph_separation/sqrt(3.)+0.5);
+       Ny = int(2.*(bbox_max[1]-bbox_min[1]+sqrt(3)*sph_sep/6.)/sph_sep/sqrt(3.)+0.5);
      }
      if(gdimension>2){
-       Nz = int(sqrt(3./2.)*(bbox_max[2]-bbox_min[2])/sph_separation+0.5);
+       Nz = int(sqrt(3./2.)*(bbox_max[2]-bbox_min[2])/sph_sep+0.5);
      }
    } else if(lattice_type==2){
-     Nx = int((bbox_max[0]-bbox_min[0]+sph_separation/2.)/sph_separation+0.5);
+     Nx = int((bbox_max[0]-bbox_min[0]+sph_sep/2.)/sph_sep+0.5);
      if(gdimension>1){
-       Ny = int(2.*(bbox_max[1]-bbox_min[1]+sqrt(3)*sph_separation/6.)/sph_separation/sqrt(3.)+0.5);
+       Ny = int(2.*(bbox_max[1]-bbox_min[1]+sqrt(3)*sph_sep/6.)/sph_sep/sqrt(3.)+0.5);
      }
      if(gdimension>2){
-       Nz = int(sqrt(3./2.)*(bbox_max[2]-bbox_min[2])/sph_separation+0.5);
+       Nz = int(sqrt(3./2.)*(bbox_max[2]-bbox_min[2])/sph_sep+0.5);
      }
    }
 
    // True number of particles to be determined and returned
    int64_t tparticles = 0;
    // Id of my first particle
-   int64_t posid = 0;
+   //int64_t posid = 0; this is set in the argument
    double x_position;
    double y_position;
    double z_position;
@@ -153,9 +155,9 @@ generate_lattice(
        for(int j=0;j<Ny;j++){
          for(int k=0;k<Nx;k++){
             //rectangular lattice in 2 or 3D
-           z_position = z_topproc + i*sph_separation;
-           y_position = y_topproc + j*sph_separation;
-           x_position = x_topproc + k*sph_separation;
+           z_position = z_topproc + i*sph_sep;
+           y_position = y_topproc + j*sph_sep;
+           x_position = x_topproc + k*sph_sep;
            if(in_domain(x_position,y_position,z_position,x_c,y_c,z_c,radius,domain_type)){
              tparticles++;
              if(!count_only){
@@ -173,20 +175,20 @@ generate_lattice(
        for(int j=0;j<Ny;j++){
          for(int k=0;k<Nx;k++){
             //hcp lattice in 2 or 3D
-            z_position = z_topproc + i*sqrt(2./3.)*sph_separation;
+            z_position = z_topproc + i*sqrt(2./3.)*sph_sep;
             if(i%2==1){
-              y_position = y_topproc - sqrt(3)*sph_separation/6. + j*sqrt(3.)/2.*sph_separation;
+              y_position = y_topproc - sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
               if(j%2==1){
-                x_position = x_topproc + k*sph_separation;
+                x_position = x_topproc + k*sph_sep;
               } else {
-                x_position = x_topproc - sph_separation/2. + k*sph_separation;
+                x_position = x_topproc - sph_sep/2. + k*sph_sep;
               }
             } else {
-              y_position = y_topproc + j*sqrt(3.)/2.*sph_separation;
+              y_position = y_topproc + j*sqrt(3.)/2.*sph_sep;
               if(j%2==1){
-                x_position = x_topproc - sph_separation/2. + k*sph_separation;
+                x_position = x_topproc - sph_sep/2. + k*sph_sep;
               } else {
-                x_position = x_topproc + k*sph_separation;
+                x_position = x_topproc + k*sph_sep;
               }
             }
            if(in_domain(x_position,y_position,z_position,x_c,y_c,z_c,radius,domain_type)){
@@ -206,27 +208,27 @@ generate_lattice(
        for(int j=0;j<Ny;j++){
          for(int k=0;k<Nx;k++){
             //fcc lattice in 2 or 3D
-            z_position = z_topproc + i*sqrt(2./3.)*sph_separation;
+            z_position = z_topproc + i*sqrt(2./3.)*sph_sep;
             if(i%3==0){
-              y_position = y_topproc + j*sqrt(3.)/2.*sph_separation;
+              y_position = y_topproc + j*sqrt(3.)/2.*sph_sep;
               if(j%2==1){
-                x_position = x_topproc - sph_separation/2. + k*sph_separation;
+                x_position = x_topproc - sph_sep/2. + k*sph_sep;
               } else {
-                x_position = x_topproc + k*sph_separation;
+                x_position = x_topproc + k*sph_sep;
               }
             } else if(i%3==1) {
-              y_position = y_topproc - sqrt(3)*sph_separation/6. + j*sqrt(3.)/2.*sph_separation;
+              y_position = y_topproc - sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
               if(j%2==1){
-                x_position = x_topproc + k*sph_separation;
+                x_position = x_topproc + k*sph_sep;
               } else {
-                x_position = x_topproc - sph_separation/2. + k*sph_separation;
+                x_position = x_topproc - sph_sep/2. + k*sph_sep;
               }
             } else if(i%3==2){
-              y_position = y_topproc + sqrt(3)*sph_separation/6. + j*sqrt(3.)/2.*sph_separation;
+              y_position = y_topproc + sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
               if(j%2==1){
-                x_position = x_topproc + k*sph_separation;
+                x_position = x_topproc + k*sph_sep;
               } else {
-                x_position = x_topproc - sph_separation/2. + k*sph_separation;
+                x_position = x_topproc - sph_sep/2. + k*sph_sep;
               }
             }
            if(in_domain(x_position,y_position,z_position,x_c,y_c,z_c,radius,domain_type)){
