@@ -442,7 +442,7 @@ void set_param(const std::string& param_name,
 # endif
 
 #ifndef equal_mass
-  READ_NUMERIC_PARAM(equal_mass)
+  READ_BOOLEAN_PARAM(equal_mass)
 #endif
 
 # ifndef rho_initial

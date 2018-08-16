@@ -202,7 +202,7 @@ int main(int argc, char * argv[]){
   if(equal_mass){
     tparticles = generate_lattice(lattice_type,2,cbox_min,cbox_max,sph_separation,0,count);
     if(gdimension==1){
-      mass = rho_1*(cbox_max[0]-cbox_min[0]);
+      mass = rho_1*(cbox_max[0]-cbox_min[0])/tparticles;
       if(lattice_type==0){
         temp_part = tparticles;
       } else if(lattice_type==1 || lattice_type==2){
@@ -211,7 +211,7 @@ int main(int argc, char * argv[]){
       temp_part_new = rho_2/rho_1*(temp_part);
       lr_sph_sep = 1./(temp_part_new-1.);
     } else if(gdimension==2){
-      mass = rho_1*(cbox_max[0]-cbox_min[0])*(cbox_max[1]-cbox_min[1]);
+      mass = rho_1*(cbox_max[0]-cbox_min[0])*(cbox_max[1]-cbox_min[1])/tparticles;
       if(lattice_type==0){
         temp_part = tparticles;
       } else if(lattice_type==1 || lattice_type==2){
@@ -220,7 +220,7 @@ int main(int argc, char * argv[]){
       temp_part_new = rho_2/rho_1*(temp_part);
       lr_sph_sep = 1./((int)sqrt(temp_part_new)-1.);
     } else{
-      mass = rho_1*(cbox_max[0]-cbox_min[0])*(cbox_max[1]-cbox_min[1])*(cbox_max[2]-cbox_min[2]);
+      mass = rho_1*(cbox_max[0]-cbox_min[0])*(cbox_max[1]-cbox_min[1])*(cbox_max[2]-cbox_min[2])/tparticles;
       if(lattice_type==0){
         temp_part = tparticles;
       } else if(lattice_type==1 || lattice_type==2){
