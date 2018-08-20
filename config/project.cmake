@@ -1,10 +1,10 @@
 #------------------------------------------------------------------------------#
-# The cinch version 
+# The cinch version
 #------------------------------------------------------------------------------#
 cinch_minimum_required(1.0)
 
 #------------------------------------------------------------------------------#
-# The project name 
+# The project name
 #------------------------------------------------------------------------------#
 project(flecsph)
 
@@ -117,3 +117,4 @@ cinch_add_application_directory("app/fluid_3D")
 cinch_add_application_directory("app/fluid_2D")
 cinch_add_application_directory("app/sodtube")
 cinch_add_application_directory("app/bwd")
+cinch_add_application_directory("app/kh")

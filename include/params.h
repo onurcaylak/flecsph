@@ -257,6 +257,11 @@ namespace param {
   DECLARE_PARAM(bool,equal_mass,true)
 #endif
 
+/// number of khtest to run (1..3)
+#ifndef khtest_num
+  DECLARE_PARAM(unsigned short,khtest_num,1)
+#endif
+
 // characteristic density for an initial conditions
 # ifndef rho_initial
   DECLARE_PARAM(double,rho_initial,1.0)
@@ -444,6 +449,10 @@ void set_param(const std::string& param_name,
 #ifndef equal_mass
   READ_BOOLEAN_PARAM(equal_mass)
 #endif
+
+# ifndef khtest_num
+  READ_NUMERIC_PARAM(khtest_num)
+# endif
 
 # ifndef rho_initial
   READ_NUMERIC_PARAM(rho_initial)
