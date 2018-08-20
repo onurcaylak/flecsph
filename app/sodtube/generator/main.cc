@@ -161,11 +161,11 @@ int main(int argc, char * argv[]){
     cbox_min[2] = -cbox_max[0];
   }
 
-  rbox_max[0] = 3.*cbox_max[0];
-  rbox_min[0] = cbox_max[0];
+  rbox_max[0] = 3.*cbox_max[0]+sph_separation;
+  rbox_min[0] = cbox_max[0]+sph_separation;
 
-  lbox_max[0] = cbox_min[0];
-  lbox_min[0] = -3.*cbox_max[0];
+  lbox_max[0] = cbox_min[0]-sph_separation;
+  lbox_min[0] = 3.*cbox_min[0]-sph_separation;
   if(gdimension>1){
     rbox_max[1] = cbox_max[1];
     rbox_min[1] = cbox_min[1];

@@ -55,19 +55,29 @@ bool in_domain(
     const double x0,
     const double y0,
     const double z0,
+    const point_t& bbox_min,
+    const point_t& bbox_max,
     const double r,
     const int domain_type)
 {
+  bool continuationvariable = true;
+  if(x < bbox_min[0] || x > bbox_max[0]) continuationvariable = false;
+  if(gdimension>1){
+    if(y < bbox_min[1] || y > bbox_max[1]) continuationvariable = false;
+  }
+  if(gdimension>2){
+    if(z < bbox_min[2] || z > bbox_max[2]) continuationvariable = false;
+  }
   if(domain_type==0){
     if(std::abs(x-x0)<=r && std::abs(y-y0)<=r && std::abs(z-z0)<=r){
-      return true;
+      return true*continuationvariable;
     } else{
-      return false;
+      return false*continuationvariable;
     }
   } else if(domain_type==1){
-    return (x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0)<r*r;
+    return ((x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0)<r*r)*continuationvariable;
   } else if(domain_type==2){
-    return true;
+    return true*continuationvariable;
   }
 }
 int64_t
@@ -158,7 +168,7 @@ generate_lattice(
            z_position = z_topproc + i*sph_sep;
            y_position = y_topproc + j*sph_sep;
            x_position = x_topproc + k*sph_sep;
-           if(in_domain(x_position,y_position,z_position,x_c,y_c,z_c,radius,domain_type)){
+           if(in_domain(x_position,y_position,z_position,x_c,y_c,z_c,bbox_min,bbox_max,radius,domain_type)){
              tparticles++;
              if(!count_only){
                x[posid] = x_position;
@@ -191,7 +201,7 @@ generate_lattice(
                 x_position = x_topproc + k*sph_sep;
               }
             }
-           if(in_domain(x_position,y_position,z_position,x_c,y_c,z_c,radius,domain_type)){
+           if(in_domain(x_position,y_position,z_position,x_c,y_c,z_c,bbox_min,bbox_max,radius,domain_type)){
              tparticles++;
              if(!count_only){
                x[posid] = x_position;
@@ -231,7 +241,7 @@ generate_lattice(
                 x_position = x_topproc - sph_sep/2. + k*sph_sep;
               }
             }
-           if(in_domain(x_position,y_position,z_position,x_c,y_c,z_c,radius,domain_type)){
+           if(in_domain(x_position,y_position,z_position,x_c,y_c,z_c,bbox_min,bbox_max,radius,domain_type)){
              tparticles++;
              if(!count_only){
                x[posid] = x_position;
